@@ -1,0 +1,31 @@
+Solver command line: ['/opt/homebrew/bin/cbc', '-printingOptions', 'all', '-import', '/var/folders/f2/wxxk71m57zq07v1_vbd7gshm0000gn/T/tmpcb7s9v3r.pyomo.lp', '-stat=1', '-solve', '-solu', '/var/folders/f2/wxxk71m57zq07v1_vbd7gshm0000gn/T/tmpcb7s9v3r.pyomo.soln']
+
+Welcome to the CBC MILP Solver 
+Version: 2.10.11 
+Build Date: Oct 26 2023 
+
+command line - /opt/homebrew/bin/cbc -printingOptions all -import /var/folders/f2/wxxk71m57zq07v1_vbd7gshm0000gn/T/tmpcb7s9v3r.pyomo.lp -stat=1 -solve -solu /var/folders/f2/wxxk71m57zq07v1_vbd7gshm0000gn/T/tmpcb7s9v3r.pyomo.soln (default strategy 1)
+Option for printingOptions changed from normal to all
+Presolve 0 (-1) rows, 0 (-2) columns and 0 (-2) elements
+Statistics for presolved model
+
+
+Problem has 0 rows, 0 columns (0 with objective) and 0 elements
+Column breakdown:
+0 of type 0.0->inf, 0 of type 0.0->up, 0 of type lo->inf, 
+0 of type lo->up, 0 of type free, 0 of type fixed, 
+0 of type -inf->0.0, 0 of type -inf->up, 0 of type 0.0->1.0 
+Row breakdown:
+0 of type E 0.0, 0 of type E 1.0, 0 of type E -1.0, 
+0 of type E other, 0 of type G 0.0, 0 of type G 1.0, 
+0 of type G other, 0 of type L 0.0, 0 of type L 1.0, 
+0 of type L other, 0 of type Range 0.0->1.0, 0 of type Range other, 
+0 of type Free 
+Presolve 0 (-1) rows, 0 (-2) columns and 0 (-2) elements
+Empty problem - 0 rows, 0 columns and 0 elements
+Optimal - objective value 2
+After Postsolve, objective 2, infeasibilities - dual 0 (0), primal 0 (0)
+Optimal objective 2 - 0 iterations time 0.002, Presolve 0.00
+Total time (CPU seconds):       0.00   (Wallclock seconds):       0.00
+
+

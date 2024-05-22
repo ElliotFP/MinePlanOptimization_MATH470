@@ -1,0 +1,22 @@
+Solver command line: ['/opt/homebrew/bin/glpsol', '--write', '/var/folders/f2/wxxk71m57zq07v1_vbd7gshm0000gn/T/tmpxd01oh3z.glpk.raw', '--wglp', '/var/folders/f2/wxxk71m57zq07v1_vbd7gshm0000gn/T/tmps34l77mg.glpk.glp', '--cpxlp', '/var/folders/f2/wxxk71m57zq07v1_vbd7gshm0000gn/T/tmpqqgifrld.pyomo.lp']
+
+GLPSOL--GLPK LP/MIP Solver 5.0
+Parameter(s) specified in the command line:
+ --write /var/folders/f2/wxxk71m57zq07v1_vbd7gshm0000gn/T/tmpxd01oh3z.glpk.raw
+ --wglp /var/folders/f2/wxxk71m57zq07v1_vbd7gshm0000gn/T/tmps34l77mg.glpk.glp
+ --cpxlp /var/folders/f2/wxxk71m57zq07v1_vbd7gshm0000gn/T/tmpqqgifrld.pyomo.lp
+Reading problem data from '/var/folders/f2/wxxk71m57zq07v1_vbd7gshm0000gn/T/tmpqqgifrld.pyomo.lp'...
+1 row, 2 columns, 2 non-zeros
+18 lines were read
+Writing problem data to '/var/folders/f2/wxxk71m57zq07v1_vbd7gshm0000gn/T/tmps34l77mg.glpk.glp'...
+11 lines were written
+GLPK Simplex Optimizer 5.0
+1 row, 2 columns, 2 non-zeros
+Preprocessing...
+~     0: obj =   2.000000000e+00  infeas =  0.000e+00
+OPTIMAL SOLUTION FOUND BY LP PREPROCESSOR
+Time used:   0.0 secs
+Memory used: 0.0 Mb (32525 bytes)
+Writing basic solution to '/var/folders/f2/wxxk71m57zq07v1_vbd7gshm0000gn/T/tmpxd01oh3z.glpk.raw'...
+12 lines were written
+
