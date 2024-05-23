@@ -76,10 +76,41 @@ def CuttingStockSolver(orders, width=100):
     # Create a list of possible patterns, patterns are tuples of the form (pattern, waste) and pattern is a list of the width of each order used
     patterns = generate_patterns(width, list(combined_orders.items()))
 
-    # Create a concrete model
-    # solve optimization problem
+    # Create linear programming model
+    model = pyo.ConcreteModel()
 
-    return patterns
+    # Variables are named as the index of the pattern
+    pattern_indices = range(len(patterns))
+    model.x = pyo.Var(pattern_indices, domain=pyo.NonNegativeIntegers)
+
+    # Objective function is to minimize the number of rolls
+    # Our objective function is the waste of every pattern multiplied by the number of times that pattern is used
+    model.obj = pyo.Objective(expr=sum(model.x[i]*patterns[i][1] for i in pattern_indices), sense=pyo.minimize)
+
+    # Constraint: the demand for each order must be met
+    model.constraints = pyo.ConstraintList() 
+    for order_width, demand in combined_orders.items():
+        # For each order, the sum of the width of the order times the number of times the pattern is used must be greater than or equal to the demand
+        model.constraints.add(sum(model.x[i] * patterns[i][0].count(order_width) for i in pattern_indices) >= demand)
+
+    # Solve the model
+    solver = pyo.SolverFactory('glpk')
+    results = solver.solve(model, tee=True)
+
+    return results, model
 
 if __name__ == "__main__":
-    test_with_glpk()
+    # Test if pyomo and glpk are correctly installed
+    # test_with_glpk()
+
+    # Test the Cutting Stock Problem
+    orders = [(10, 100), (20, 50), (30, 25)]
+    results, model = CuttingStockSolver(orders)
+    print("Solver Results:")
+    print(results)
+    print("Waste:")
+    print(model.obj())
+    print("Rolls:")
+    print(sum([pyo.value(model.x[pattern]) for pattern in model.x]))
+
+   
