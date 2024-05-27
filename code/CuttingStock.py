@@ -41,19 +41,25 @@ def generate_patterns(width, orders):
     Output:
         patterns: list of tuples (pattern, waste) where pattern is a list of the order width of each order used and waste is the amount of waste
     """ 
-    # initialize the list of patterns and the list of order widths
     patterns = []
     order_widths = [order[0] for order in orders]
 
-    # Generate all combinations of orders that can fit within the roll width
-    for i in range(1, len(order_widths) + 1):
-        for combination in combinations_with_replacement(order_widths, i):
-            if sum(combination) <= width:
-                patterns.append((combination, width - sum(combination)))
+    # Recursive function to generate all possible combinations of orders
+    def generate_combinations(current_pattern, remaining_width):
+        patterns.append((tuple(current_pattern), width - remaining_width))
+        for order_width in order_widths:
+            if remaining_width >= order_width:
+                generate_combinations(current_pattern + [order_width], remaining_width - order_width)
 
-    return patterns
+    generate_combinations([], width) # Start with an empty pattern and the full width of the roll
 
-def CuttingStockSolver(orders, width=100):
+    # Make the second index of the tuple the waste
+    patterns_with_waste = [(pattern[0], width - sum(pattern[0])) for pattern in patterns]
+
+    
+    return patterns_with_waste
+
+def CuttingStockSolver(orders, width=40):
     """
     Solves the Cutting Stock Problem using the given orders.
 
@@ -75,6 +81,8 @@ def CuttingStockSolver(orders, width=100):
 
     # Create a list of possible patterns, patterns are tuples of the form (pattern, waste) and pattern is a list of the width of each order used
     patterns = generate_patterns(width, list(combined_orders.items()))
+
+    print("Patterns: ", patterns)
 
     # Create linear programming model
     model = pyo.ConcreteModel()
@@ -103,14 +111,21 @@ if __name__ == "__main__":
     # Test if pyomo and glpk are correctly installed
     # test_with_glpk()
 
-    # Test the Cutting Stock Problem
+
+    # test the pattern generation
+    width = 40
     orders = [(10, 100), (20, 50), (30, 25)]
-    results, model = CuttingStockSolver(orders)
-    print("Solver Results:")
-    print(results)
-    print("Waste:")
-    print(model.obj())
-    print("Rolls:")
-    print(sum([pyo.value(model.x[pattern]) for pattern in model.x]))
+    patterns = generate_patterns(width, orders)
+    print("Patterns:", patterns)
+
+    # Test the Cutting Stock Problem
+    # orders = [(10, 100), (20, 50), (30, 25)]
+    # results, model = CuttingStockSolver(orders)
+    # print("Solver Results:")
+    # print(results)
+    # print("Waste:")
+    # print(model.obj())
+    # print("Rolls:")
+    # print(sum([pyo.value(model.x[pattern]) for pattern in model.x]))
 
    
