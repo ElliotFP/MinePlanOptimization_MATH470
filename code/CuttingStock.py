@@ -46,7 +46,7 @@ def generate_patterns(width, orders):
 
     # Recursive function to generate all possible combinations of orders
     def generate_combinations(current_pattern, remaining_width):
-        patterns.append((tuple(current_pattern), width - remaining_width))
+        patterns.append((current_pattern, width - remaining_width))
         for order_width in order_widths:
             if remaining_width >= order_width:
                 generate_combinations(current_pattern + [order_width], remaining_width - order_width)
@@ -55,11 +55,10 @@ def generate_patterns(width, orders):
 
     # Make the second index of the tuple the waste
     patterns_with_waste = [(pattern[0], width - sum(pattern[0])) for pattern in patterns]
-
     
     return patterns_with_waste
 
-def CuttingStockSolver(orders, width=40):
+def CuttingStockSolver(orders, width=50):
     """
     Solves the Cutting Stock Problem using the given orders.
 
@@ -82,8 +81,6 @@ def CuttingStockSolver(orders, width=40):
     # Create a list of possible patterns, patterns are tuples of the form (pattern, waste) and pattern is a list of the width of each order used
     patterns = generate_patterns(width, list(combined_orders.items()))
 
-    print("Patterns: ", patterns)
-
     # Create linear programming model
     model = pyo.ConcreteModel()
 
@@ -91,41 +88,55 @@ def CuttingStockSolver(orders, width=40):
     pattern_indices = range(len(patterns))
     model.x = pyo.Var(pattern_indices, domain=pyo.NonNegativeIntegers)
 
+    # make sure length of variables is the same as the number of patterns
+    assert len(list(model.x)) == len(patterns)
+
     # Objective function is to minimize the number of rolls
     # Our objective function is the waste of every pattern multiplied by the number of times that pattern is used
-    model.obj = pyo.Objective(expr=sum(model.x[i]*patterns[i][1] for i in pattern_indices), sense=pyo.minimize)
+    objective_function = sum(model.x[i]*patterns[i][1] for i in pattern_indices)
+    model.obj = pyo.Objective(expr=objective_function, sense=pyo.minimize)
 
-    # Constraint: the demand for each order must be met
-    model.constraints = pyo.ConstraintList() 
+    # print the objective function
+    print("Objective Function: ", model.obj.expr)
+    
+    # Create the list of constraints based with the demand for each order
+    model.constraints = pyo.ConstraintList()
     for order_width, demand in combined_orders.items():
-        # For each order, the sum of the width of the order times the number of times the pattern is used must be greater than or equal to the demand
-        model.constraints.add(sum(model.x[i] * patterns[i][0].count(order_width) for i in pattern_indices) >= demand)
+        # the sum of the width of each order used in a pattern multiplied by the number of times that pattern is used must be greater than or equal to the demand for that order
+        constraint_expr = sum(model.x[i] * patterns[i][0].count(order_width) for i in pattern_indices if patterns[i][0].count(order_width))
+        print("Constraint Expression: ", constraint_expr, "Demand: ", demand)
+        model.constraints.add(constraint_expr >= demand)
+    
+
+    # print the constraints
+    print("Constraints:")
+    model.constraints.pprint()
 
     # Solve the model
-    solver = pyo.SolverFactory('glpk')
+    solver = pyo.SolverFactory('glpk') # Use the GLPK solver, other options are 'cplex', 'gurobi', cbc, etc.
     results = solver.solve(model, tee=True)
 
     return results, model
 
+
+
 if __name__ == "__main__":
+    # define parameters
+    width = 40
+
     # Test if pyomo and glpk are correctly installed
     # test_with_glpk()
 
 
     # test the pattern generation
-    width = 40
+    # orders = [(10, 25), (20, 36), (30, 20)]
+    # patterns = generate_patterns(width, orders)
+    # print("Patterns:", patterns)
+
+    #Test the Cutting Stock Problem
     orders = [(10, 100), (20, 50), (30, 25)]
-    patterns = generate_patterns(width, orders)
-    print("Patterns:", patterns)
+    results, model = CuttingStockSolver(orders, width)
+    print("Solver Results:", results)
 
-    # Test the Cutting Stock Problem
-    # orders = [(10, 100), (20, 50), (30, 25)]
-    # results, model = CuttingStockSolver(orders)
-    # print("Solver Results:")
-    # print(results)
-    # print("Waste:")
-    # print(model.obj())
-    # print("Rolls:")
-    # print(sum([pyo.value(model.x[pattern]) for pattern in model.x]))
 
-   
+    
