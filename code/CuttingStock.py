@@ -97,20 +97,20 @@ def CuttingStockSolver(orders, width=50):
     model.obj = pyo.Objective(expr=objective_function, sense=pyo.minimize)
 
     # print the objective function
-    print("Objective Function: ", model.obj.expr)
+    #print("Objective Function: ", model.obj.expr)
     
     # Create the list of constraints based with the demand for each order
     model.constraints = pyo.ConstraintList()
     for order_width, demand in combined_orders.items():
         # the sum of the width of each order used in a pattern multiplied by the number of times that pattern is used must be greater than or equal to the demand for that order
         constraint_expr = sum(model.x[i] * patterns[i][0].count(order_width) for i in pattern_indices if patterns[i][0].count(order_width))
-        print("Constraint Expression: ", constraint_expr, "Demand: ", demand)
+        #print("Constraint Expression: ", constraint_expr, "Demand: ", demand)
         model.constraints.add(constraint_expr >= demand)
     
 
     # print the constraints
-    print("Constraints:")
-    model.constraints.pprint()
+    #print("Constraints:")
+    #model.constraints.pprint()
 
     # Solve the model
     solver = pyo.SolverFactory('glpk') # Use the GLPK solver, other options are 'cplex', 'gurobi', cbc, etc.
@@ -122,7 +122,7 @@ def CuttingStockSolver(orders, width=50):
 
 if __name__ == "__main__":
     # define parameters
-    width = 40
+    width = 43
 
     # Test if pyomo and glpk are correctly installed
     # test_with_glpk()
@@ -134,9 +134,12 @@ if __name__ == "__main__":
     # print("Patterns:", patterns)
 
     #Test the Cutting Stock Problem
-    orders = [(10, 100), (20, 50), (30, 25)]
+    orders = [(10, 100), (23, 50), (30, 25)]
     results, model = CuttingStockSolver(orders, width)
     print("Solver Results:", results)
+    print("Number of Rolls:", sum(pyo.value(model.x[i]) for i in model.x))
+    print("Waste:", pyo.value(model.obj))
+
 
 
     
