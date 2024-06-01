@@ -119,6 +119,10 @@ def CuttingStockSolver(orders, width=50):
     return results, model
 
 
+# Cutting Stock Problem using delayed column generation and the Dantzig-Wolfe decomposition
+def CuttingStockColumnGenSolver(orders, width):
+    return
+
 
 if __name__ == "__main__":
     # define parameters
