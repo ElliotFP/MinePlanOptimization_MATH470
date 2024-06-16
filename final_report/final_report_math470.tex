@@ -1,0 +1,246 @@
+\documentclass[11pt]{article}
+\usepackage{mathbbol}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{ragged2e}
+\usepackage{tikz}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage[table,xcdraw]{xcolor}
+\usetikzlibrary{positioning}
+\begin{document}
+\noindent Elliot F. Poirier
+\hfill
+McGill University
+\\
+Summer 2024
+\hfill
+MATH470 : Honours Research Project
+\\
+\begin{center}
+\textbf{\LARGE{Using optimization methods in the context of mine planning}}
+\end{center}
+\hfill
+\\
+
+
+\noindent \textbf{\large{1. Transshipment Problem}} \\
+
+\begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,
+    thick,main node/.style={circle,fill=blue!20,draw,font=\sffamily\Large\bfseries}]
+
+\node[main node] (O1) {O1};
+\node[main node] (O2) [below of=O1] {O2};
+\node[main node] (J1) [right of=O1] {J1};
+\node[main node] (J2) [right of=O2] {J2};
+\node[main node] (J3) [right of=J1, yshift=-1cm] {J3}; % Adjusted position of J3
+\node[main node] (D1) [above right of=J3] {D1}; % Adjusted position of D1
+\node[main node] (D2) [below right of=J3] {D2}; % Adjusted position of D2
+
+\node [left of=O1, xshift=2cm] {10}; % Supply at O1
+\node [left of=O2, xshift=2cm] {15}; % Supply at O2
+\node [right of=D1, xshift=-2cm] {12}; % Demand at D1
+\node [right of=D2, xshift=-2cm] {13}; % Demand at D2
+
+\path[every node/.style={font=\sffamily\small}]
+(O1) edge node [left] {5} (O2)
+(O1) edge node [above] {5} (J1)
+(O2) edge node [above] {3} (J2)
+(O2) edge node [right] {4} (J1)
+(J1) edge node [above] {2} (D1)
+(J2) edge node [above] {2} (D2)
+(J1) edge node [right] {4} (J3)
+(J2) edge node [right] {6} (J3)
+(J3) edge node [above] {7} (D1)
+(J3) edge node [below] {8} (D2);
+\end{tikzpicture}
+
+\noindent We can formulate this problem as a linear program in the following way, 
+
+
+\begin{aligned}
+    \text{min} &\quad \sum_{u,v \in V} t_{u,v}x_{u,v} \\
+    \text{s.t.} &\quad \sum_{v \in V} x_{u,v} - \sum_{v \in V} x_{v,u} = a_u \quad \forall u \in V \\ 
+    & \quad \sum_{v \in V} x_{v,u} - \sum_{v \in V} x_{u,v} = b_u \quad \forall u \in V \\
+    & \quad \sum_{i=1}^m a_i = \sum_{j=1}^n b_j \\
+    & \quad x_{u,v} \geq 0 \quad \forall u,v \in V
+    \end{aligned}
+
+\noindent consider the following example,\\
+
+\begin{tikzpicture}[->, >=stealth', shorten >=1pt, auto, node distance=4cm, semithick]
+
+    % Styles
+    \tikzstyle{node_style} = [circle, draw=black, fill=blue!30, font=\sffamily\Large\bfseries]
+
+    % Nodes
+    \node[node_style] (O1) at (-10,8) {O1};
+    \node[node_style] (O2) at (-10,4) {O2};
+    \node[node_style] (O3) at (-10,0) {O3};
+    
+    \node[node_style] (J1) at (-4,10) {J1};
+    \node[node_style] (J2) at (-4,6) {J2};
+    \node[node_style] (J3) at (-4,2) {J3};
+    \node[node_style] (J4) at (-4,-2) {J4};
+    \node[node_style] (J5) at (-4,-6) {J5};
+    
+    \node[node_style] (D1) at (2,8) {D1};
+    \node[node_style] (D2) at (2,4) {D2};
+    \node[node_style] (D3) at (2,0) {D3};
+    \node[node_style] (D4) at (2,-4) {D4};
+  
+    % Origin to Junction connections
+    \path (O1) edge node {324} (J1);
+    \path (O1) edge node {286} (J2);
+    
+    \path (O2) edge node {373} (J1);
+    \path (O2) edge node [below] {212} (J2);
+    \path (O2) edge node {570} (J3);
+    \path (O2) edge node {609} (J4);
+    
+    \path (O3) edge node {658} (J1);
+    \path (O3) edge node {405} (J3);
+    \path (O3) edge node {419} (J4);
+    \path (O3) edge node {158} (J5);
+  
+    % Junction to Destination connections
+    \path (J1) edge node {503} (D1);
+    \path (J1) edge node {234} (D2);
+    \path (J1) edge node [below] {329} (D3);
+    
+    \path (J2) edge node {505} (D1);
+    \path (J2) edge node {407} (D2);
+    \path (J2) edge node {683} (D3);
+    
+    \path (J3) edge node {398} (D1);
+    \path (J3) edge node {253} (D2);
+    \path (J3) edge node {171} (D3);
+    
+    \path (J4) edge node {329} (D2);
+    \path (J4) edge node [below] {464} (D3);
+    \path (J4) edge node {117} (D4);
+    
+    \path (J5) edge node [below] {647} (D1);
+    \path (J5) edge node {501} (D2);
+    \path (J5) edge node {293} (D3);
+    \path (J5) edge node {482} (D4);
+  
+    % Output values (supply)
+    \node at (-11,8) {75};
+    \node at (-11,4) {125};
+    \node at (-11,0) {100};
+  
+    % Allocation values (demand)
+    \node at (3,8) {80};
+    \node at (3,4) {65};
+    \node at (3,0) {70};
+    \node at (3,-4) {85};
+  
+\end{tikzpicture}
+
+\\
+ 
+\noindent Additional example.\\
+
+\noindent \begin{table}[h!]
+    \centering
+    \begin{tabular}{|c|c|c|c|}
+    \hline
+
+         & WH 1    & WH 2       &  Capacity        \\ \hline
+    Plant 1 & 6    & 5          & 600      \\ \hline
+    Plant 2 & 4    & 7          & 500      \\ \hline
+    Plant 3 & 8    & 5          & 700      \\ \hline
+    \end{tabular}
+    \end{table}\\
+    \begin{table}[h!]
+    \begin{tabular}{|c|c|c|c|}
+    \hline
+    
+           & DC 1    & DC 2       & DC 3    \\ \hline
+    WH 1   & 6       & 7          & 9       \\ \hline
+    WH 2   & 3       & 6          & 12      \\ \hline
+    Demand & 400     & 600        & 800     \\ \hline
+    \end{tabular}
+    \end{table}\\
+
+    \begin{tikzpicture}[->, >=stealth', shorten >=1pt, auto, node distance=4cm, semithick]
+
+        % Styles
+        \tikzstyle{node_style} = [circle, draw=black, fill=blue!30, font=\sffamily\Large\bfseries]
+    
+        % Nodes
+        \node[node_style] (O1) at (-10,4) {O1};
+        \node[node_style] (O2) at (-10,0) {O2};
+        \node[node_style] (O3) at (-10,-4) {O3};
+        
+        \node[node_style] (J1) at (-4,2) {J1};
+        \node[node_style] (J2) at (-4,-2) {J2};
+        
+        \node[node_style] (D1) at (2,4) {D1};
+        \node[node_style] (D2) at (2,0) {D2};
+        \node[node_style] (D3) at (2,-4) {D3};
+        
+        % Labels for supply and demand
+        \node at (-11,4) {600};
+        \node at (-11,0) {500};
+        \node at (-11,-4) {700};
+      
+        \node at (3,4) {400};
+        \node at (3,0) {600};
+        \node at (3,-4) {800};
+        
+        % Origin to Junction connections
+        \path (O1) edge node {6} (J1);
+        \path (O1) edge node {5} (J2);
+        
+        \path (O2) edge node {4} (J1);
+        \path (O2) edge node {7} (J2);
+        
+        \path (O3) edge node {8} (J1);
+        \path (O3) edge node {5} (J2);
+      
+        % Junction to Destination connections
+        \path (J1) edge node {6} (D1);
+        \path (J1) edge node {7} (D2);
+        \path (J1) edge node {9} (D3);
+        
+        \path (J2) edge node {3} (D1);
+        \path (J2) edge node {6} (D2);
+        \path (J2) edge node {12} (D3);
+        
+    \end{tikzpicture}\\
+
+  \begin{align}
+        \text{min} & \quad 6 x_{o_1,j_1}+5 x_{o_1,j_2}+4 x_{o_2, j_1}+7 x_{o_2,j_2}+8 x_{o_3,j_1}+5 x_{o_3,j_2} \nonumber \\ 
+        & \quad +6 x_{j_1,d_1}+7 x_{j_1, d_2}+9 x_{j_1,d_3}+3 x_{j_2,d_1}+6 x_{j_2,d_2}+12 x_{j_2,d_3} \nonumber \\ 
+        \text{s.t.} & \quad x_{o_1,j_1}+x_{o_1,j_2} \leq 600\\
+        & \quad x_{o_2,j_1}+x_{o_2,j_2} \leq 500\\ 
+        & \quad x_{o_3,j_1}+x_{o_3,j_2} \leq 700\\
+        & \quad x_{o_1, j_1}+x_{o_2, j_1}+x_{o_3,j_1}-x_{j_1,d_1}-x_{j_1,d_2}-x_{j_1,d_3}=0\\
+        & \quad x_{o_1, j_2}+x_{o_2, j_2}+x_{o_3,j_2}-x_{j_2,d_1}-x_{j_2,d_2}-x_{j_2,d_3}=0\\
+        & \quad x_{j_1,d_1}+x_{j_2,d_1}=400\\
+        & \quad x_{j_1,d_2}+x_{j_2,d_2}=600\\
+        & \quad x_{j_1,d_3}+x_{j_2,d_3}=800\\
+        & \quad x_{u,v} \geq 0 \quad \forall u,v \in V
+        \end{align}
+    
+
+\noindent \textbf{\large{2. Multiple Vehicle Routing}} \\
+
+\begin{aligned}
+    \min \quad & \sum_{u \in V} \sum_{v \in V} w_{u,v} x_{u,v} \\
+    \text{s.t} \quad & \sum_{v \in V} x_{v, u}=1 \quad \forall u \in V \backslash\{0\} \\
+    & \sum_{u \in V} x_{v, u}=1 \quad \forall v \in V \backslash\{0\} \\
+    & \sum_{v \in V \backslash\{0\}} x_{u, 0}= \sum_{u \in V\{0\}} x_{0, v}=k\\
+    & \sum_{v \notin S} \sum_{u \in S} x_{v, u} \geq r(S), \quad \forall S \subseteq V \backslash\{0\}, S \neq \emptyset \\
+    & x_{v, u} \in\{0,1\} \quad \forall v, u \in V
+    \end{aligned}\\
+
+    \noindent The 4th constraint can be rewritten as follows,
+    $$
+    \sum_{v \in S} \sum_{u \in S} x_{v, u} \leq|S|-r(S)
+    $$
+
+
+\end{document}

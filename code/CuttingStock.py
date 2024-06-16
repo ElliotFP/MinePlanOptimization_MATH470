@@ -1,5 +1,6 @@
 import pyomo.environ as pyo
-from itertools import combinations_with_replacement 
+from itertools import combinations_with_replacement
+import KnapsackSolver as ks
 
 # Global Variables for the Cutting Stock Problem
 
