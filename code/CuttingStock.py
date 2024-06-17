@@ -120,6 +120,59 @@ def CuttingStockSolver(orders, width=50):
     return results, model
 
 
+#################################################
+## Column Generation for Cutting Stock Problem ##
+#################################################
+
+def generate_initial_patterns(orders, width):
+    """
+    Generate initial patterns for the Cutting Stock Problem using single order and greedy patterns.
+    
+    Args:
+        orders (list of tuple): A list of tuples (width, demand) where width is the width of the order and demand is the demand for that order.
+        width (int): The width of the roll of material.
+    
+    Returns:
+        patterns (list of list): A list of initial patterns where each pattern is a list of integers indicating the count of each order width used in the pattern.
+    """
+    single_patterns = []
+    
+    # Single order patterns
+    for order in orders: 
+        pattern = []
+        while sum(pattern) < width - order[0]: # For each order, fill a pattern with as many of that order as possible
+            pattern.append(order[0])
+        
+        single_patterns.append(pattern)
+
+    print("Single Order Patterns:", single_patterns)
+    
+    # Greedy patterns
+    greedy_patterns = []
+    sorted_orders = sorted(orders, key=lambda x: -x[0])  # Sort orders by width in descending order
+    for i in range(len(orders)):
+        j = i
+        pattern = []
+        while sum(pattern) < width:
+            if sum(pattern) > width - sorted_orders[j][0]: # check if adding another order will exceed the remaining width
+                j +=1
+                if j == len(orders):
+                    break
+                continue
+            pattern.append(sorted_orders[j][0])
+        
+        greedy_patterns.append(pattern)
+
+    print("Greedy Patterns:", greedy_patterns)
+
+    # remove duplicates
+    patterns = single_patterns + greedy_patterns
+    patterns = [list(x) for i, x in enumerate(patterns) if patterns.index(x) == i] # Remove duplicates
+
+    return patterns
+
+
+
 # Cutting Stock Problem using delayed column generation and the Dantzig-Wolfe decomposition
 def CuttingStockColumnGenSolver(orders, width):
     return
@@ -140,10 +193,15 @@ if __name__ == "__main__":
 
     #Test the Cutting Stock Problem
     orders = [(10, 100), (23, 50), (30, 25)]
-    results, model = CuttingStockSolver(orders, width)
-    print("Solver Results:", results)
-    print("Number of Rolls:", sum(pyo.value(model.x[i]) for i in model.x))
-    print("Waste:", pyo.value(model.obj))
+    # results, model = CuttingStockSolver(orders, width)
+    # print("Solver Results:", results)
+    # print("Number of Rolls:", sum(pyo.value(model.x[i]) for i in model.x))
+    # print("Waste:", pyo.value(model.obj))
+
+    # test initial pattern generation
+    initial_patterns = generate_initial_patterns(orders, width)
+    print("Initial Patterns:", initial_patterns)
+
 
 
 
