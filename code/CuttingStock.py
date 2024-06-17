@@ -1,6 +1,7 @@
 import pyomo.environ as pyo
 from itertools import combinations_with_replacement
 import KnapsackSolver as ks
+from collections import Counter
 
 # Global Variables for the Cutting Stock Problem
 
@@ -59,7 +60,7 @@ def generate_patterns(width, orders):
     
     return patterns_with_waste
 
-def CuttingStockSolver(orders, width=50):
+def CuttingStockSolver(orders, patterns, width=50):
     """
     Solves the Cutting Stock Problem using the given orders.
 
@@ -70,18 +71,7 @@ def CuttingStockSolver(orders, width=50):
         waste: the minimal amount of waste
         rolls: the number of rolls needed
     """
-
-    # start by combining orders have the same width
-    combined_orders = {}
-    for order_width, demand in orders:
-        if order_width in combined_orders:
-            combined_orders[order_width] += demand
-        else:
-            combined_orders[order_width] = demand
-
-    # Create a list of possible patterns, patterns are tuples of the form (pattern, waste) and pattern is a list of the width of each order used
-    patterns = generate_patterns(width, list(combined_orders.items()))
-
+    print("patterns:", patterns)
     # Create linear programming model
     model = pyo.ConcreteModel()
 
@@ -169,13 +159,37 @@ def generate_initial_patterns(orders, width):
     patterns = single_patterns + greedy_patterns
     patterns = [list(x) for i, x in enumerate(patterns) if patterns.index(x) == i] # Remove duplicates
 
+    # get the waste for each pattern
+    pattern_waste = [width - sum(pattern) for pattern in patterns]
+    patterns = list(zip(patterns, pattern_waste))
+    print("Initial Patterns:", patterns)
+
     return patterns
 
 
 
 # Cutting Stock Problem using delayed column generation and the Dantzig-Wolfe decomposition
 def CuttingStockColumnGenSolver(orders, width):
-    return
+
+    # Generate initial patterns
+    initial_patterns = generate_initial_patterns(orders, width)
+
+   
+    print("Initial Patterns:", initial_patterns)
+
+    # solve the initial master problem
+    results, model = CuttingStockSolver(orders, initial_patterns, width)
+    print("Initial Master Problem Results:", results)
+    print("Number of Rolls:", sum(pyo.value(model.x[i]) for i in model.x))
+    print("Waste:", pyo.value(model.obj))
+
+    # check if the solution is optimal (0 waste)
+    if pyo.value(model.obj) == 0:
+        print("Optimal Solution Found")
+        return results, model
+    
+    # otherwise, we need to generate columns
+    return results, model
 
 
 if __name__ == "__main__":
@@ -192,15 +206,32 @@ if __name__ == "__main__":
     # print("Patterns:", patterns)
 
     #Test the Cutting Stock Problem
-    orders = [(10, 100), (23, 50), (30, 25)]
-    # results, model = CuttingStockSolver(orders, width)
-    # print("Solver Results:", results)
-    # print("Number of Rolls:", sum(pyo.value(model.x[i]) for i in model.x))
-    # print("Waste:", pyo.value(model.obj))
+    orders = [(10, 7), (23, 1), (30, 1)]
+
+    # start by combining orders have the same width
+    combined_orders = {}
+    for order_width, demand in orders:
+        if order_width in combined_orders:
+            combined_orders[order_width] += demand
+        else:
+            combined_orders[order_width] = demand
+
+    # Create a list of possible patterns, patterns are tuples of the form (pattern, waste) and pattern is a list of the width of each order used
+    patterns = generate_patterns(width, list(combined_orders.items()))
+    results, model = CuttingStockSolver(orders, patterns, width)
+    print("Solver Results:", results)
+    print("Number of Rolls:", sum(pyo.value(model.x[i]) for i in model.x))
+    print("Waste:", pyo.value(model.obj))
 
     # test initial pattern generation
-    initial_patterns = generate_initial_patterns(orders, width)
-    print("Initial Patterns:", initial_patterns)
+    # initial_patterns = generate_initial_patterns(orders, width)
+    # print("Initial Patterns:", initial_patterns)
+
+    # Test the Cutting Stock Problem with Column Generation
+    results, model = CuttingStockColumnGenSolver(orders, width)
+    print("Solver Results:", results)
+    print("Number of Rolls:", sum(pyo.value(model.x[pattern]) for pattern in model.x))
+    print("Waste:", pyo.value(model.obj))
 
 
 
