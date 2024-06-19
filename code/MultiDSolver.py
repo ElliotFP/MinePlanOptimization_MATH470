@@ -84,14 +84,20 @@ def solve_subproblem(subproblem_def, x_vals):
     else:
         return None, None
 
-def solve_multidivisional_problem_decomposition(objective_coeffs, constraints, subproblem_defs):
+def solve_multidivisional_problem_decomposition(objective, constraints, subproblems):
     """
+    Solves the block-angular problem using Benders decomposition. We start with an initial master problem which is the top-level constraint that contains all the variables. We then solve the master problem, and for each subproblem, we solve the subproblem and generate a Benders cut. We add the Benders cut to the master problem and repeat the process until no more Benders cuts are generated.
     Input:
         objective: list of coefficients for the objective function.
         constraints: List of tuples, where each tuple contains:
             - A list of coefficients for the constraint.
             - A right-hand side value for the constraint.
             - A string indicating the type of constraint ('<=' or '==').: 
+        subproblems: List of tuples, where each tuple contains: 
+            - A list of coefficients for the objective function.
+            - A list of lists of coefficients for the constraints.
+            - A list of right-hand side values for the constraints.
+            these represent the independent blocks
     Output:
         results: dictionary with status, objective value, and variable values.
     """
@@ -99,11 +105,11 @@ def solve_multidivisional_problem_decomposition(objective_coeffs, constraints, s
     master_prob = pulp.LpProblem("Master_Problem", pulp.LpMaximize)
 
     # Define initial decision variables for the master problem
-    num_vars = len(objective_coeffs)
+    num_vars = len(objective)
     x = pulp.LpVariable.dicts("x", range(num_vars), lowBound=0)
 
     # Objective function for master problem
-    master_prob += pulp.lpSum([objective_coeffs[i] * x[i] for i in range(num_vars)]), "Objective"
+    master_prob += pulp.lpSum([objective[i] * x[i] for i in range(num_vars)]), "Objective"
 
     # Add master constraints
     for idx, (coeffs, rhs, sense) in enumerate(constraints):
@@ -129,8 +135,8 @@ def solve_multidivisional_problem_decomposition(objective_coeffs, constraints, s
 
         # Solve subproblems and generate Benders cuts
         new_cuts = []
-        for subproblem_def in subproblem_defs:
-            new_cut, subproblem_obj = solve_subproblem(subproblem_def, x_vals)
+        for subproblem in subproblems:
+            new_cut, subproblem_obj = solve_subproblem(subproblem, x_vals)
             if new_cut is not None:
                 new_cuts.append((new_cut, subproblem_obj))
         
