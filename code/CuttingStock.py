@@ -98,26 +98,11 @@ def CuttingStockSolver(orders, patterns, width=50, duals=False):
         #print("Constraint Expression: ", constraint_expr, "Demand: ", demand)
         model.constraints.add(constraint_expr >= demand)
     
-    model.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
+    #ouaonemodel.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
 
     # Solve the model
     solver = pyo.SolverFactory('glpk') # Use the GLPK solver, other options are 'cplex', 'gurobi', cbc, etc.
     results = solver.solve(model, tee=True)
-
-    model.dual.display()
-
-    # Manually check and extract dual values
-    dual_values = []
-    for i, constraint in enumerate(model.constraints):
-        if i < len(combined_orders):
-            try:
-                dual_value = model.dual[constraint]
-                dual_values.append(dual_value)
-                print(f"Constraint {i+1}: Dual Value = {dual_value}")
-            except KeyError:
-                print(f"Constraint {i+1}: No dual value available")
-                dual_values.append(None)
-    
 
     return results, model
 
