@@ -69,19 +69,21 @@ def solve_subproblem(subproblem_def, x_vals):
         new_cut: A list of values for the new cut.
         subproblem_obj: The objective value of the subproblem.
     """
+    # Define the subproblem
     sub_prob = pulp.LpProblem("Subproblem", pulp.LpMaximize)
     sub_vars = [pulp.LpVariable(f"y_{i}", lowBound=0) for i in range(len(subproblem_def[0]))]
     sub_prob += pulp.lpSum([subproblem_def[0][i] * sub_vars[i] for i in range(len(subproblem_def[0]))]), "Objective"
     
+    # Add constraint
     for coeffs, rhs in zip(subproblem_def[1], subproblem_def[2]):
         sub_prob += (pulp.lpSum([coeffs[i] * sub_vars[i] for i in range(len(coeffs))]) <= rhs)
 
-    sub_prob.solve()
+    sub_prob.solve() # Solve the subproblem
     
-    if pulp.LpStatus[sub_prob.status] == "Optimal":
+    if pulp.LpStatus[sub_prob.status] == "Optimal": # If the subproblem is feasible, generate a Benders cut
         new_cut = [sub_vars[i].varValue for i in range(len(sub_vars))]
         return new_cut, sub_prob.objective.value()
-    else:
+    else: # If the subproblem is infeasible, return None
         return None, None
 
 def solve_multidivisional_problem_decomposition(objective, constraints, subproblems):
@@ -135,17 +137,19 @@ def solve_multidivisional_problem_decomposition(objective, constraints, subprobl
 
         # Solve subproblems and generate Benders cuts
         new_cuts = []
-        for subproblem in subproblems:
-            new_cut, subproblem_obj = solve_subproblem(subproblem, x_vals)
-            if new_cut is not None:
+        for subproblem in subproblems: 
+            new_cut, subproblem_obj = solve_subproblem(subproblem, x_vals) # Solve the subproblem
+            if new_cut is not None: # If the subproblem is feasible, generate a Benders cut
                 new_cuts.append((new_cut, subproblem_obj))
         
-        if not new_cuts:
+        if not new_cuts: # If no new Benders cuts are generated, break
             break
 
         # Add new Benders cuts to the master problem
         for new_cut, subproblem_obj in new_cuts:
             benders_cuts.append(new_cut)
+
+            # Add Benders cut to the master problem
             master_prob += (pulp.lpSum(new_cut[i] * x[i] for i in range(num_vars)) <= subproblem_obj), f"Benders_Cut_{iteration}"
             iteration += 1
 
@@ -171,6 +175,13 @@ def main():
 
     solution = block_angular_solve(objective_coeffs, constraints)
     print(solution)
+
+    # Example usage of Benders decomposition
+    constraints = [
+        ([5, 3, 4, 2, 7, 3, 4, 6], 30, '<='),
+    ] 
+    subproblems = [
+
 
     return 
 
