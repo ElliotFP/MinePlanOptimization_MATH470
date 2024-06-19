@@ -60,7 +60,7 @@ def generate_patterns(width, orders):
     
     return patterns_with_waste
 
-def CuttingStockSolver(orders, patterns, width=50):
+def CuttingStockSolver(orders, patterns, width=50, duals=False):
     """
     Solves the Cutting Stock Problem using the given orders.
 
@@ -98,14 +98,26 @@ def CuttingStockSolver(orders, patterns, width=50):
         #print("Constraint Expression: ", constraint_expr, "Demand: ", demand)
         model.constraints.add(constraint_expr >= demand)
     
-
-    # print the constraints
-    #print("Constraints:")
-    #model.constraints.pprint()
+    model.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
 
     # Solve the model
     solver = pyo.SolverFactory('glpk') # Use the GLPK solver, other options are 'cplex', 'gurobi', cbc, etc.
     results = solver.solve(model, tee=True)
+
+    model.dual.display()
+
+    # Manually check and extract dual values
+    dual_values = []
+    for i, constraint in enumerate(model.constraints):
+        if i < len(combined_orders):
+            try:
+                dual_value = model.dual[constraint]
+                dual_values.append(dual_value)
+                print(f"Constraint {i+1}: Dual Value = {dual_value}")
+            except KeyError:
+                print(f"Constraint {i+1}: No dual value available")
+                dual_values.append(None)
+    
 
     return results, model
 
@@ -166,30 +178,59 @@ def generate_initial_patterns(orders, width):
 
     return patterns
 
+def generate_column(orders, width, dual_values):
+    """
+    Generates a new column for the Cutting Stock Problem using the dual variables from the master problem.
 
+    Args:
+        orders (list of tuple): A list of tuples (width, demand) where width is the width of the order and demand is the demand for that order.
+        width (int): The width of the roll of material.
+        duals (dict): A dictionary of dual variables for the constraints in the master problem.
+
+    Returns:
+        pattern (list): A new pattern where each element is the count of each order width used in the pattern.
+        waste (int): The waste of the new pattern.
+    """
+    items = [(orders[i], dual_values[i]) for i in range(len(orders))] # Create a list of items with the order and its dual variable
+    total_value, selected = ks.solve_knapsack(items, width) # Solve the knapsack problem using the dual variables to find the new pattern
+    
+    # Convert the selected items to a list of integers and return the pattern
+    new_pattern = [int(x) for x in selected]
+    return new_pattern if sum(new_pattern) > 0 else None
 
 # Cutting Stock Problem using delayed column generation and the Dantzig-Wolfe decomposition
 def CuttingStockColumnGenSolver(orders, width):
-
     # Generate initial patterns
-    initial_patterns = generate_initial_patterns(orders, width)
-
-   
-    print("Initial Patterns:", initial_patterns)
-
-    # solve the initial master problem
-    results, model = CuttingStockSolver(orders, initial_patterns, width)
-    print("Initial Master Problem Results:", results)
-    print("Number of Rolls:", sum(pyo.value(model.x[i]) for i in model.x))
-    print("Waste:", pyo.value(model.obj))
-
-    # check if the solution is optimal (0 waste)
-    if pyo.value(model.obj) == 0:
-        print("Optimal Solution Found")
-        return results, model
+    patterns = generate_initial_patterns(orders, width)
     
     # otherwise, we need to generate columns
+    while True:
+        # solve the master problem to get the dual variables
+        results, model = CuttingStockSolver(orders, patterns, width, duals=True)
+
+        if pyo.value(model.obj) ==0: # if the waste is 0, we have an optimal solution
+            print("Optimal Solution Found")
+            return results, model
+        
+        # # get the dual variables
+        # for i in model.component_objects(pyo.Constraint, active=True):
+        #     print("Constraint:", i, "Dual Value:", pyo.value(model.dual[i]))
+        dual_values = [model.dual[model.constraints[i + 1]] for i in range(len(orders))]
+        
+
+        new_pattern = generate_column(orders, width, dual_values) # generate a new column
+        if new_pattern is None: # if no new column can be generated, we have an optimal solution
+            print("No more columns to generate")
+            return results, model
+        
+        # add the new column to the list of patterns
+        patterns.append((new_pattern, width - sum(new_pattern))) 
+
     return results, model
+        
+
+
+
 
 
 if __name__ == "__main__":
@@ -217,11 +258,11 @@ if __name__ == "__main__":
             combined_orders[order_width] = demand
 
     # Create a list of possible patterns, patterns are tuples of the form (pattern, waste) and pattern is a list of the width of each order used
-    patterns = generate_patterns(width, list(combined_orders.items()))
-    results, model = CuttingStockSolver(orders, patterns, width)
-    print("Solver Results:", results)
-    print("Number of Rolls:", sum(pyo.value(model.x[i]) for i in model.x))
-    print("Waste:", pyo.value(model.obj))
+    # patterns = generate_patterns(width, list(combined_orders.items()))
+    # results, model = CuttingStockSolver(orders, patterns, width)
+    # print("Solver Results:", results)
+    # print("Number of Rolls:", sum(pyo.value(model.x[i]) for i in model.x))
+    # print("Waste:", pyo.value(model.obj))
 
     # test initial pattern generation
     # initial_patterns = generate_initial_patterns(orders, width)
