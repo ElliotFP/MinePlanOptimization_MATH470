@@ -88,7 +88,7 @@ def solve_subproblem(subproblem_def, x_vals):
 
 def solve_multidivisional_problem_decomposition(objective, constraints, subproblems):
     """
-    Solves the block-angular problem using Benders decomposition. We start with an initial master problem which is the top-level constraint that contains all the variables. We then solve the master problem, and for each subproblem, we solve the subproblem and generate a Benders cut. We add the Benders cut to the master problem and repeat the process until no more Benders cuts are generated.
+    Solves the block-angular problem using dantzig-wolfe decomposition. We start with an initial master problem which is the top-level constraint that contains all the variables. We then solve the master problem, and for each subproblem, we solve the subproblem and generate columns for the master problem. We then add the new columns to the master problem and solve again. We repeat this process until no new columns are generated.
     Input:
         objective: list of coefficients for the objective function.
         constraints: List of tuples, where each tuple contains:
@@ -122,36 +122,11 @@ def solve_multidivisional_problem_decomposition(objective, constraints, subprobl
         else:
             raise ValueError("Unsupported constraint type. Use '<=' or '=='.")
 
-    # Benders Decomposition Loop
-    benders_cuts = []
-    iteration = 0
-
     while True:
         # Solve the master problem
         master_prob.solve()
         
-        if pulp.LpStatus[master_prob.status] != "Optimal":
-            break
-
-        x_vals = [x[i].varValue for i in range(num_vars)]
-
-        # Solve subproblems and generate Benders cuts
-        new_cuts = []
-        for subproblem in subproblems: 
-            new_cut, subproblem_obj = solve_subproblem(subproblem, x_vals) # Solve the subproblem
-            if new_cut is not None: # If the subproblem is feasible, generate a Benders cut
-                new_cuts.append((new_cut, subproblem_obj))
-        
-        if not new_cuts: # If no new Benders cuts are generated, break
-            break
-
-        # Add new Benders cuts to the master problem
-        for new_cut, subproblem_obj in new_cuts:
-            benders_cuts.append(new_cut)
-
-            # Add Benders cut to the master problem
-            master_prob += (pulp.lpSum(new_cut[i] * x[i] for i in range(num_vars)) <= subproblem_obj), f"Benders_Cut_{iteration}"
-            iteration += 1
+        # Dantzig-Wolfe Decomposition
 
     # Get the results
     result = {

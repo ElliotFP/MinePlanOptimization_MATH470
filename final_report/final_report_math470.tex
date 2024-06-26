@@ -263,20 +263,33 @@ MATH470 : Honours Research Project
 
 \noindent and the following subproblems,\\
 
-\begin{align}
-\text{max} & \quad 8 x_1+5 x_2+6 x_3 \nonumber \\ 
-\text{s.t.} & \quad 2 x_1+4 x_2+3 x_3 \leq 5 \nonumber \\
-\end{align} \nonumber
+$$
+\begin{aligned}
+    \max \quad & \pi_1\left(5 x_1+3 x_2+4 x_3\right)+\pi_2\left(2 x_1+4 x_2+3 x_3\right) \\
+    \text { s.t. } \quad  & 2 x_1+4 x_2+3 x_3 \leq 5 \\
+    \quad & x_1, x_2, x_3 \geq 0,
+ \quad x_1, x_2, x_3 \in \mathbb{Z}
+    \end{aligned} \nonumber
+$$\\
 
-\begin{align}
-\text{max} & \quad 9 x_4+7 x_5+9 x_6 \nonumber \\ 
-\text{s.t.} & \quad 2x_4+8 x_5+6 x_6 \leq 6 \nonumber \\
-\end{align} \nonumber
+$$
+\begin{aligned}
+    \max \quad & \pi_3\left(2 x_4+8 x_5+6 x_6\right) + \pi_4 (2x_4 +7x_5 + 3x_6) \\
+    \text { s.t. } \quad  & 2 x_4+8 x_5+6 x_6 \leq 6 \\
+    \quad & x_4, x_5, x_6 \geq 0,
+ \quad x_4, x_5, x_6 \in \mathbb{Z}
+    \end{aligned} \nonumber
+    $$\\
 
-\begin{align}
-\text{max} & \quad 6 x_7+5 x_8  + 6 x_9  \nonumber \\ 
-\text{s.t.} & \quad 3x_7+5 x_8+9 x_9 \leq 32 \nonumber \\
-\end{align} \nonumber
+$$
+\begin{aligned}
+    \max \quad & \pi_5\left(3 x_7+5 x_8+9 x_9\right) + \pi_6 (4x_7 +6x_8 + x_9) \\
+    \text { s.t. } \quad  & 3 x_7+5 x_8+9 x_9 \leq 32 \\
+    \quad & x_7, x_8, x_9 \geq 0,
+ \quad x_7, x_8, x_9 \in \mathbb{Z}
+    \end{aligned} \nonumber
+
+
 
 \noindent After solving the subproblems, we get the following solutions,\\
 
