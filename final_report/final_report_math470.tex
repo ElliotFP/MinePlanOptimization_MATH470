@@ -288,7 +288,7 @@ $$
     \quad & x_7, x_8, x_9 \geq 0,
  \quad x_7, x_8, x_9 \in \mathbb{Z}
     \end{aligned} \nonumber
-
+$$\\
 
 
 \noindent After solving the subproblems, we get the following solutions,\\
@@ -301,6 +301,23 @@ $$
 & \quad  10 x_7 \leq 60 \nonumber\\
 & \quad x_i \geq 0 \quad \forall i \in \{1, \cdots,9\} \quad \text{and} \quad x_i \in \mathbb{Z} \quad \forall i \in \{1, \cdots,9\} \nonumber
 \end{align} \nonumber
+\\
+
+\noindent \textbf{\large{4. Block Selection Linear Program}} \\
+
+\noindent This is a subproblem of larger mine planning optimization problems. The objective is to maximize the total value of the blocks selected, subject to the constraints that the total volume of the selected blocks does not exceed the available volume, and that the total value of the selected blocks does not exceed the available value. Here is a formal version of the problem for two modes, $\{A, B\}$ and two ore types $\{I, II\}$.
+
+\begin{align} 
+    \max & \sum_{b \in \mathfrak{B}}\left(V_{b A I} m_{b A I}+V_{b A I I} m_{b A II}+V_{b B I} m_{b B I}+V_{b B II} m_{b B II}\right) \\ 
+    \text { st. } & \sum_{b \in \mathfrak{B}}\left(\frac{m_{b A I}}{r_{A I}}+\frac{m_{b A II}}{r_{A II}}+\frac{m_{b B I}}{r_{B I}}+\frac{m_{b B II}}{r_{B II}}\right) \leqslant t_{\text {period }} \\ 
+    & m_{b A I}+m_{b B I} \leqslant m_{b I} \quad \forall b \in \mathfrak{B} \\ 
+    & m_{b A II}+m_{b B II} \leqslant m_{b II} \quad \forall b \in \mathfrak{B} \\ 
+    & m_{i j k}, r_{j k} \geqslant 0 \quad \forall i \in \mathfrak{B}, j \in \text {modes, } k \in \text {ores }
+\end{align}
+
+\noindent where $\mathfrak{B}$ is the set of blocks, $V_{b j k}$ is the value of block $b$ in mode $j$ and ore $k$, $m_{b j k}$ is the volume of block $b$ in mode $j$ and ore $k$, $r_{j k}$ is the recovery rate of ore $k$ in mode $j$, and $t_{\text {period }}$ is the total time available for block selection.\\
+
+\noindent The first constraint represents the time constraint, that is to say that the total volume of blocks divided by the rate of recovery of the ore must be less than or equal to the total time available. The second and third constraints represent the volume constraints, that is to say that the volume of blocks selected in mode $j$ and ore $k$ must be less than or equal to the total volume of blocks in mode $j$ and ore $k$.\\
 
 
 \end{document}
