@@ -53,6 +53,18 @@ def main():
 
     # Solve the problem
     x = network_simplex(A, b, c)
+
+    # code to verify correctness
+    # Verify the solution
+    # Check if the solution satisfies the constraints
+    constraints_satisfied = np.allclose(np.dot(A, x), b)
+    
+    # Calculate the objective value
+    objective_value = np.dot(c, x)
+    
+    # Print verification results
+    print("Constraints satisfied:", constraints_satisfied)
+    print("Objective value:", objective_value)
     print(x)
 
 if __name__ == "__main__":
