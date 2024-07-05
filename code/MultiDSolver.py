@@ -257,6 +257,54 @@ def simple_column_generation(objective, constraints, max_iterations=1000, tolera
     return {f"x_{i}": solution[i] for i in range(num_vars)}, pulp.value(master_prob.objective)
 
 
+def generate_and_compare_LPs(num_LPs):
+    """
+    Generate a number of linear programs of the block angular format and then solve them using LP_solve and then compare the results to the simple column generation method.
+    """
+    import random
+
+    # Define the number of variables and constraints for each LP
+    num_vars = 10
+    num_constraints = 5
+
+    # Counter for LPs with the same objective value
+    same_objective_count = 0
+
+    # Generate random LPs
+    for lp_index in range(num_LPs):
+        # Generate random objective coefficients
+        objective_coeffs = [random.randint(1, 10) for _ in range(num_vars)]
+
+        # Generate random constraints
+        constraints = []
+        for _ in range(num_constraints):
+            coeffs = [random.randint(0, 10) for _ in range(num_vars)]
+            rhs = random.randint(10, 50)
+            constraints.append((coeffs, rhs))
+
+        # Solve the LP using LP_solve
+        solution_1 = LP_solve(objective_coeffs, [(c[0], c[1], '<=') for c in constraints])
+        objective_1 = solution_1['Objective Value']
+
+        # Solve the LP using simple column generation method
+        solution_2, objective_2 = simple_column_generation(objective_coeffs, constraints)
+
+        # Print the results
+        print(f"LP {lp_index + 1}:")
+        print("LP_solve solution:", solution_1)
+        print("LP_solve objective:", objective_1)
+        print("Simple column generation solution:", solution_2)
+        print("Simple column generation objective:", objective_2)
+
+        # Check if the objective values are the same (within a small tolerance)
+        if abs(objective_1  - objective_2) < 1e-6:
+            same_objective_count += 1
+
+        print()
+
+    # Print the number of LPs with the same objective value
+    print(f"Number of LPs with the same objective value: {same_objective_count} out of {num_LPs}")
+
 # Example usage
 # Example usage:
 objective_coeffs = [8, 5, 6, 9, 7, 9, 6, 5]
@@ -273,18 +321,21 @@ constraints = [
     ([0, 0, 0, 0, 0, 0, 8, 5], 25)
 ]
 
-solution_1 = LP_solve(objective_coeffs, constraints_)
-solution_2 = dantzig_wolfe_decomposition(objective_coeffs, constraints)
-solution_3, objective_3 = simple_column_generation(objective_coeffs, constraints)
-print("Simple column generation solution:", solution_3)
-print("Simple column generation objective:", objective_3)
-print(solution_1)
-print(solution_2)
+# use the testing function
+generate_and_compare_LPs(4)
 
-# Compute the final objective value of solution_2
-final_obj_value = sum(objective_coeffs[i] * solution_2[f'x_{i}'] for i in range(len(objective_coeffs)))
+# solution_1 = LP_solve(objective_coeffs, constraints_)
+# solution_2 = dantzig_wolfe_decomposition(objective_coeffs, constraints)
+# solution_3, objective_3 = simple_column_generation(objective_coeffs, constraints)
+# print("Simple column generation solution:", solution_3)
+# print("Simple column generation objective:", objective_3)
+# print(solution_1)
+# print(solution_2)
 
-# Print the final objective value
-print(f"Final objective value of solution_2: {final_obj_value}")
+# # Compute the final objective value of solution_2
+# final_obj_value = sum(objective_coeffs[i] * solution_2[f'x_{i}'] for i in range(len(objective_coeffs)))
+
+# # Print the final objective value
+# print(f"Final objective value of solution_2: {final_obj_value}")
 
 
