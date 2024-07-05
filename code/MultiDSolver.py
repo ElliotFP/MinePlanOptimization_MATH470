@@ -46,6 +46,7 @@ def LP_solve(objective, constraints):
 
     return results
 
+
 def solve_subproblem(coeffs, duals, rhs):
     """
     Solves a subproblem defined by coefficients, dual values from the master problem, and RHS value.
@@ -63,8 +64,12 @@ def solve_subproblem(coeffs, duals, rhs):
     # Solve the subproblem
     sub_prob.solve()
     
+    # Debug prints
+    print(f"Subproblem objective value: {pulp.value(sub_prob.objective)}")
+    print(f"Subproblem variable values: {[y_vars[i].varValue for i in range(len(coeffs))]}")
+    
     # Check if the solution is beneficial (reduced cost is negative)
-    if pulp.value(sub_prob.objective) < 0:
+    if pulp.value(sub_prob.objective) < -1e-5:  # Use a small tolerance to avoid numerical issues
         return [y_vars[i].varValue for i in range(len(coeffs))]
     return None
 
@@ -88,19 +93,30 @@ def solve_master(objective, sub_columns):
 
 def dantzig_wolfe_decomposition(objective, constraints):
     # Initial step: create a trivial solution or use a heuristic to generate initial columns
-    sub_columns = [solve_subproblem(constraint[0], [0]*len(constraint[0]), constraint[1]) for constraint in constraints if solve_subproblem(constraint[0], [0]*len(constraint[0]), constraint[1]) is not None]
+    sub_columns = []
+    for constraint in constraints:
+        initial_column = solve_subproblem(constraint[0], [0]*len(constraint[0]), constraint[1])
+        if initial_column is not None:
+            sub_columns.append(initial_column)
     
     # If no initial columns are beneficial, return infeasibility or unboundedness
     if not sub_columns:
+        print("Initial columns are not beneficial. Problem might be infeasible or unbounded.")
         return "Infeasible or unbounded"
     
     master_prob, master_solution = solve_master(objective, sub_columns)
     
     # Loop to add new columns until no beneficial columns can be added
     while True:
-        new_column = solve_subproblem(constraints[0][0], [pulp.value(master_prob.constraints[f"Constraint_{i+1}"].pi) for i in range(len(constraints[0][0]))], constraints[0][1])
+        duals = [pulp.value(master_prob.constraints[f"Constraint_{i+1}"].pi) for i in range(len(constraints[0][0]))]
+        print(f"Current dual values: {duals}")
+        
+        new_column = solve_subproblem(constraints[0][0], duals, constraints[0][1])
         if new_column is None:
+            print("No beneficial column found. Terminating.")
             break
+        
+        print(f"New column found: {new_column}")
         sub_columns.append(new_column)
         master_prob, master_solution = solve_master(objective, sub_columns)
     
