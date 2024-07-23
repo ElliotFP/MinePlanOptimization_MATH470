@@ -105,18 +105,21 @@ def dantzig_wolfe_decomposition(objective, constraints, max_iterations=1000, tol
     for iteration in range(max_iterations):
         # Solve master problem
         master_prob = pulp.LpProblem("Master", pulp.LpMaximize)
-        lambda_vars = pulp.LpVariable.dicts("lambda", range(len(sub_columns)), lowBound=0)
+        lambda_vars = pulp.LpVariable.dicts("lambda", range(len(sub_columns)), lowBound=0) # Define lambda variables which represent the coefficients of the columns in the objective function.
 
         # Objective
+        # Define the objective function of the master problem as the sum of the objective coefficients times the lambda variables.
         master_prob += pulp.lpSum(objective[i] * pulp.lpSum(lambda_vars[j] * sub_columns[j][i] for j in range(len(sub_columns))) for i in range(num_vars))
 
         # Constraints
+        # Add the constraints to the master problem. Each constraint is defined as the sum of the constraint coefficients times the lambda variables.
         for i, constraint in enumerate(constraints):
             master_prob += pulp.lpSum(constraint[0][k] * pulp.lpSum(lambda_vars[j] * sub_columns[j][k] for j in range(len(sub_columns))) for k in range(num_vars)) <= constraint[1], f"Constraint_{i}"
 
-        master_prob.solve()
+        master_prob.solve() # Solve the master problem
 
         # Get dual values
+        # Extract the dual values (shadow prices) for each constraint in the master problem.
         duals = [master_prob.constraints[f"Constraint_{i}"].pi for i in range(num_constraints)]
 
         # Solve subproblem (pricing problem)
@@ -124,15 +127,17 @@ def dantzig_wolfe_decomposition(objective, constraints, max_iterations=1000, tol
         x = pulp.LpVariable.dicts("x", range(num_vars), lowBound=0)
 
         # Subproblem objective: Maximize reduced cost
+        # Define the objective function of the subproblem as the sum of the reduced costs times the variables.
         sub_prob += pulp.lpSum((objective[i] - pulp.lpSum(duals[j] * constraints[j][0][i] for j in range(num_constraints))) * x[i] for i in range(num_vars))
 
         # Subproblem constraints
+        # Add the constraints to the subproblem. Each constraint is defined as the sum of the constraint coefficients times the variables.
         for i, constraint in enumerate(constraints):
             sub_prob += pulp.lpSum(constraint[0][j] * x[j] for j in range(num_vars)) <= constraint[1], f"SubConstraint_{i}"
 
         sub_prob.solve()
 
-        # Check if we found a column with positive reduced cost
+        # Check if we found a column with negative reduced cost
         if pulp.value(sub_prob.objective) <= tolerance:
             break
 
@@ -141,7 +146,9 @@ def dantzig_wolfe_decomposition(objective, constraints, max_iterations=1000, tol
         sub_columns.append(new_column)
 
     # Recover solution
+    # Initialize the solution vector with zeros.
     solution = [0] * num_vars
+    # Calculate the final solution by summing the columns weighted by the lambda variables.
     for j, var in lambda_vars.items():
         for i in range(num_vars):
             solution[i] += sub_columns[j][i] * pulp.value(var)
