@@ -4,9 +4,12 @@
 \usepackage{amssymb}
 \usepackage{ragged2e}
 \usepackage{tikz}
+\usetikzlibrary{intersections}
 \usepackage{array}
 \usepackage{booktabs}
-\usepackage[table,xcdraw]{xcolor}
+\usepackage{hyperref}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.16}
 \usetikzlibrary{positioning}
 \begin{document}
 \noindent Elliot F. Poirier
@@ -18,306 +21,349 @@ Summer 2024
 MATH470 : Honours Research Project
 \\
 \begin{center}
-\textbf{\LARGE{Using optimization methods in the context of mine planning}}
+\textbf{\LARGE{Using optimization methods to reduce the computational complexity of mine planning problems}}
 \end{center}
 \hfill
 \\
 
 
-\noindent \textbf{\large{1. Transshipment Problem}} \\
+\noindent \textbf{\large{1. Block-Angular Structure}}
+\\
 
-\begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,
-    thick,main node/.style={circle,fill=blue!20,draw,font=\sffamily\Large\bfseries}]
+\noindent A matrix $A$ has a \textbf{block angular structure} if it is of this form:
+\[
+A = \begin{bmatrix}
+A_{1} & A_{2} & \cdots & A_{n-1} & A_{n} \\
+A_{n+1} & 0 & \cdots & 0 & 0 \\
+0 & A_{n+2} & \cdots & 0 & 0 \\
+\vdots & \vdots & \ddots & \vdots & \vdots \\
+0 & 0 & \cdots & 0 & A_{2n}
+\end{bmatrix}
+\]
 
-\node[main node] (O1) {O1};
-\node[main node] (O2) [below of=O1] {O2};
-\node[main node] (J1) [right of=O1] {J1};
-\node[main node] (J2) [right of=O2] {J2};
-\node[main node] (J3) [right of=J1, yshift=-1cm] {J3}; % Adjusted position of J3
-\node[main node] (D1) [above right of=J3] {D1}; % Adjusted position of D1
-\node[main node] (D2) [below right of=J3] {D2}; % Adjusted position of D2
+\noindent where $A_{i}$ are submatrices of size $m_i \times n_i$. We call the first $n$ matrices $A_1, A_2, \cdots, A_{n-1}$ the bounding constraints and the last $n$ matrices the independent constraints. Notice that this easily becomes a linear program that looks like this, 
 
-\node [left of=O1, xshift=2cm] {10}; % Supply at O1
-\node [left of=O2, xshift=2cm] {15}; % Supply at O2
-\node [right of=D1, xshift=-2cm] {12}; % Demand at D1
-\node [right of=D2, xshift=-2cm] {13}; % Demand at D2
-
-\path[every node/.style={font=\sffamily\small}]
-(O1) edge node [left] {5} (O2)
-(O1) edge node [above] {5} (J1)
-(O2) edge node [above] {3} (J2)
-(O2) edge node [right] {4} (J1)
-(J1) edge node [above] {2} (D1)
-(J2) edge node [above] {2} (D2)
-(J1) edge node [right] {4} (J3)
-(J2) edge node [right] {6} (J3)
-(J3) edge node [above] {7} (D1)
-(J3) edge node [below] {8} (D2);
-\end{tikzpicture}
-
-\noindent We can formulate this problem as a linear program in the following way, 
-
-
+$$
 \begin{aligned}
-    \text{min} &\quad \sum_{u,v \in V} t_{u,v}x_{u,v} \\
-    \text{s.t.} &\quad \sum_{v \in V} x_{u,v} - \sum_{v \in V} x_{v,u} = a_u \quad \forall u \in V \\ 
-    & \quad \sum_{v \in V} x_{v,u} - \sum_{v \in V} x_{u,v} = b_u \quad \forall u \in V \\
-    & \quad \sum_{i=1}^m a_i = \sum_{j=1}^n b_j \\
-    & \quad x_{u,v} \geq 0 \quad \forall u,v \in V
+\text{maximize} \quad & \sum_{i=1}^{n} \vec{c}_i \vec{x}_i \\
+\text{subject to} \quad & [A_1, \cdots, A_n, I] \vec{x}^T = \vec{b}_0 \quad \text{  linking constraints}\\
+& A_{n+i} \vec{x}_i = \vec{b}_i, \quad \forall i \in \{1, \cdots, n\} \quad \text{  independent constraints} \\
+& \vec{x}^T \geq 0, \quad \vec{x}_i \geq 0, \quad \forall i \in \{1, \cdots, n\} \quad \text{  non-negativity constraints}
+\end{aligned}
+$$
+
+\noindent In this linear program, the $\vec{c}_i$ are the costs and $\vec{x} = [\vec{x}_1, \cdots, \vec{x}_n]^T$ are the decision variables and $\vec{b}_i$ are the right hand side of the constraints. The aim of the Dantzig-Wolfe decomposition is to be more computationally efficient in solving this problem. We start with a \textbf{restricted master problem} (RMP), which usually encompasses all the linking constraints and then check the independent constraints one by one by solving them as subproblems.
+
+\newpage
+
+
+\noindent \textbf{\large{2. Column Generation}} \\
+\\
+
+\noindent \textbf{2.1 Intro}
+\\
+
+\noindent Column generation is a method for solving large scale linear programs. It is a variant of the simplex algorithm that is used to solve linear programs with a large number of variables. The idea is to start with a small subset of the variables and then iteratively add variables to the problem until the solution is optimal. We have a \textbf{master problem} (MP) and our \textbf{restricted master problem} (RMP). The RMP is obtained by taking a subset fo the variables from the MP based on some heuristic. We iteratively solve the RMP and then add variables to the RMP based on positive reduced cost (in the context of max problems, negative reduced cost for min problems). This process is repeated until the MP is optimal, which is when we have no positive reduced cost columns.
+\\
+
+\noindent \textbf{2.2 Algorithm details}
+\\
+
+\noindent Given a Master Problem (MP), and its dual, 
+$$
+\begin{aligned}
+    \begin{aligned}
+        \text{max} \quad & c^T x \\
+        \text{s.t.} \quad & A x = b \geq c \\
+        & x \geq 0 
     \end{aligned}
+\end{aligned}
+$$
 
-\noindent consider the following example,\\
-
-\begin{tikzpicture}[->, >=stealth', shorten >=1pt, auto, node distance=4cm, semithick]
-
-    % Styles
-    \tikzstyle{node_style} = [circle, draw=black, fill=blue!30, font=\sffamily\Large\bfseries]
-
-    % Nodes
-    \node[node_style] (O1) at (-10,8) {O1};
-    \node[node_style] (O2) at (-10,4) {O2};
-    \node[node_style] (O3) at (-10,0) {O3};
-    
-    \node[node_style] (J1) at (-4,10) {J1};
-    \node[node_style] (J2) at (-4,6) {J2};
-    \node[node_style] (J3) at (-4,2) {J3};
-    \node[node_style] (J4) at (-4,-2) {J4};
-    \node[node_style] (J5) at (-4,-6) {J5};
-    
-    \node[node_style] (D1) at (2,8) {D1};
-    \node[node_style] (D2) at (2,4) {D2};
-    \node[node_style] (D3) at (2,0) {D3};
-    \node[node_style] (D4) at (2,-4) {D4};
-  
-    % Origin to Junction connections
-    \path (O1) edge node {324} (J1);
-    \path (O1) edge node {286} (J2);
-    
-    \path (O2) edge node {373} (J1);
-    \path (O2) edge node [below] {212} (J2);
-    \path (O2) edge node {570} (J3);
-    \path (O2) edge node {609} (J4);
-    
-    \path (O3) edge node {658} (J1);
-    \path (O3) edge node {405} (J3);
-    \path (O3) edge node {419} (J4);
-    \path (O3) edge node {158} (J5);
-  
-    % Junction to Destination connections
-    \path (J1) edge node {503} (D1);
-    \path (J1) edge node {234} (D2);
-    \path (J1) edge node [below] {329} (D3);
-    
-    \path (J2) edge node {505} (D1);
-    \path (J2) edge node {407} (D2);
-    \path (J2) edge node {683} (D3);
-    
-    \path (J3) edge node {398} (D1);
-    \path (J3) edge node {253} (D2);
-    \path (J3) edge node {171} (D3);
-    
-    \path (J4) edge node {329} (D2);
-    \path (J4) edge node [below] {464} (D3);
-    \path (J4) edge node {117} (D4);
-    
-    \path (J5) edge node [below] {647} (D1);
-    \path (J5) edge node {501} (D2);
-    \path (J5) edge node {293} (D3);
-    \path (J5) edge node {482} (D4);
-  
-    % Output values (supply)
-    \node at (-11,8) {75};
-    \node at (-11,4) {125};
-    \node at (-11,0) {100};
-  
-    % Allocation values (demand)
-    \node at (3,8) {80};
-    \node at (3,4) {65};
-    \node at (3,0) {70};
-    \node at (3,-4) {85};
-  
-\end{tikzpicture}
-
-\\
+\noindent Now, given our master problem, we define a restricted master problem (RMP) with a subset of the variables from the master problem, $I$, based on having a feasible solution and some heuristic (for finding 'important' variables). 
+$$
+\begin{aligned}
+    \text{max} \quad & \sum_{j \in I} c_j x_j \\
+    \text{s.t.} \quad & \sum_{j \in I} A_j x_j = b \\
+    & x_j \geq 0, \quad \forall j \in I
+\end{aligned}
+$$
  
-\noindent Additional example.\\
 
-\noindent \begin{table}[h!]
-    \centering
-    \begin{tabular}{|c|c|c|c|}
-    \hline
-
-         & WH 1    & WH 2       &  Capacity        \\ \hline
-    Plant 1 & 6    & 5          & 600      \\ \hline
-    Plant 2 & 4    & 7          & 500      \\ \hline
-    Plant 3 & 8    & 5          & 700      \\ \hline
-    \end{tabular}
-    \end{table}\\
-    \begin{table}[h!]
-    \begin{tabular}{|c|c|c|c|}
-    \hline
-    
-           & DC 1    & DC 2       & DC 3    \\ \hline
-    WH 1   & 6       & 7          & 9       \\ \hline
-    WH 2   & 3       & 6          & 12      \\ \hline
-    Demand & 400     & 600        & 800     \\ \hline
-    \end{tabular}
-    \end{table}\\
-
-    \begin{tikzpicture}[->, >=stealth', shorten >=1pt, auto, node distance=4cm, semithick]
-
-        % Styles
-        \tikzstyle{node_style} = [circle, draw=black, fill=blue!30, font=\sffamily\Large\bfseries]
-    
-        % Nodes
-        \node[node_style] (O1) at (-10,4) {O1};
-        \node[node_style] (O2) at (-10,0) {O2};
-        \node[node_style] (O3) at (-10,-4) {O3};
-        
-        \node[node_style] (J1) at (-4,2) {J1};
-        \node[node_style] (J2) at (-4,-2) {J2};
-        
-        \node[node_style] (D1) at (2,4) {D1};
-        \node[node_style] (D2) at (2,0) {D2};
-        \node[node_style] (D3) at (2,-4) {D3};
-        
-        % Labels for supply and demand
-        \node at (-11,4) {600};
-        \node at (-11,0) {500};
-        \node at (-11,-4) {700};
-      
-        \node at (3,4) {400};
-        \node at (3,0) {600};
-        \node at (3,-4) {800};
-        
-        % Origin to Junction connections
-        \path (O1) edge node {6} (J1);
-        \path (O1) edge node {5} (J2);
-        
-        \path (O2) edge node {4} (J1);
-        \path (O2) edge node {7} (J2);
-        
-        \path (O3) edge node {8} (J1);
-        \path (O3) edge node {5} (J2);
-      
-        % Junction to Destination connections
-        \path (J1) edge node {6} (D1);
-        \path (J1) edge node {7} (D2);
-        \path (J1) edge node {9} (D3);
-        
-        \path (J2) edge node {3} (D1);
-        \path (J2) edge node {6} (D2);
-        \path (J2) edge node {12} (D3);
-        
-    \end{tikzpicture}\\
-
-  \begin{align}
-        \text{min} & \quad 6 x_{o_1,j_1}+5 x_{o_1,j_2}+4 x_{o_2, j_1}+7 x_{o_2,j_2}+8 x_{o_3,j_1}+5 x_{o_3,j_2} \nonumber \\ 
-        & \quad +6 x_{j_1,d_1}+7 x_{j_1, d_2}+9 x_{j_1,d_3}+3 x_{j_2,d_1}+6 x_{j_2,d_2}+12 x_{j_2,d_3} \nonumber \\ 
-        
-        \text{s.t.} & \quad x_{o_1,j_1}+x_{o_1,j_2} \leq 600\\
-        & \quad x_{o_2,j_1}+x_{o_2,j_2} \leq 500\\ 
-        & \quad x_{o_3,j_1}+x_{o_3,j_2} \leq 700\\
-        & \quad x_{o_1, j_1}+x_{o_2, j_1}+x_{o_3,j_1}-x_{j_1,d_1}-x_{j_1,d_2}-x_{j_1,d_3}=0\\
-        & \quad x_{o_1, j_2}+x_{o_2, j_2}+x_{o_3,j_2}-x_{j_2,d_1}-x_{j_2,d_2}-x_{j_2,d_3}=0\\
-        & \quad x_{j_1,d_1}+x_{j_2,d_1}=400\\
-        & \quad x_{j_1,d_2}+x_{j_2,d_2}=600\\
-        & \quad x_{j_1,d_3}+x_{j_2,d_3}=800\\
-        & \quad x_{u,v} \geq 0 \quad \forall u,v \in V
-        \end{align}
-    
-
-\noindent \textbf{\large{2. Multiple Vehicle Routing}} \\
-
-\begin{aligned}
-    \min \quad & \sum_{u \in V} \sum_{v \in V} w_{u,v} x_{u,v} \\
-    \text{s.t} \quad & \sum_{v \in V} x_{v, u}=1 \quad \forall u \in V \backslash\{0\} \\
-    & \sum_{u \in V} x_{v, u}=1 \quad \forall v \in V \backslash\{0\} \\
-    & \sum_{v \in V \backslash\{0\}} x_{u, 0}= \sum_{u \in V\{0\}} x_{0, v}=k\\
-    & \sum_{v \notin S} \sum_{u \in S} x_{v, u} \geq r(S), \quad \forall S \subseteq V \backslash\{0\}, S \neq \emptyset \\
-    & x_{v, u} \in\{0,1\} \quad \forall v, u \in V
-    \end{aligned}\\
-
-    \noindent The 4th constraint can be rewritten as follows,
-    $$
-    \sum_{v \in S} \sum_{u \in S} x_{v, u} \leq|S|-r(S)
-    $$
-
-\noindent \textbf{\large{3. Multidivisional problem}} \\
-
-\begin{align}
-    \text{max} & \quad 8 x_1+5 x_2+6 x_3+9 x_4+7 x_5+9 x_6+6 x_7+5 x_8  + 6 x_9 \nonumber \\ 
-    \text{s.t.} & \quad 5 x_1+ 3 x_2+4 x_3+2 x_4+7 x_5+3 x_6+4 x_7+6 x_8 + x_9 \leq 30 \nonumber \\
-    &\quad 2 x_1+4 x_2+3 x_3 \leq 5\nonumber\\ 
-    & \quad  2x_4+8 x_5+6 x_6 \leq 6 \nonumber\\
-    & \quad  3x_7+5 x_8+9 x_9 \leq 32 \nonumber\\
-    & \quad x_i \geq 0 \quad \forall i \in \{1, \cdots,9\} \quad \text{and} \quad x_i \in \mathbb{Z} \quad \forall i \in \{1, \cdots,9\} \nonumber
-    \end{align} \nonumber
-
-    \noindent We then do the benders decomposition, with initial master problem,\\
-
-\begin{align}
-\text{max} & \quad 8 x_1+5 x_2+6 x_3+9 x_4+7 x_5+9 x_6+6 x_7+5 x_8  + 6 x_9 \nonumber \\ 
-\text{s.t.} & \quad 5 x_1+ 3 x_2+4 x_3+2 x_4+7 x_5+3 x_6+4 x_7+6 x_8 + x_9 \leq 30 \nonumber \\
-\end{align} \nonumber
-
-\noindent and the following subproblems,\\
-
-$$
-\begin{aligned}
-    \max \quad & \pi_1\left(5 x_1+3 x_2+4 x_3\right)+\pi_2\left(2 x_1+4 x_2+3 x_3\right) \\
-    \text { s.t. } \quad  & 2 x_1+4 x_2+3 x_3 \leq 5 \\
-    \quad & x_1, x_2, x_3 \geq 0,
- \quad x_1, x_2, x_3 \in \mathbb{Z}
-    \end{aligned} \nonumber
-$$\\
-
-$$
-\begin{aligned}
-    \max \quad & \pi_3\left(2 x_4+8 x_5+6 x_6\right) + \pi_4 (2x_4 +7x_5 + 3x_6) \\
-    \text { s.t. } \quad  & 2 x_4+8 x_5+6 x_6 \leq 6 \\
-    \quad & x_4, x_5, x_6 \geq 0,
- \quad x_4, x_5, x_6 \in \mathbb{Z}
-    \end{aligned} \nonumber
-    $$\\
-
-$$
-\begin{aligned}
-    \max \quad & \pi_5\left(3 x_7+5 x_8+9 x_9\right) + \pi_6 (4x_7 +6x_8 + x_9) \\
-    \text { s.t. } \quad  & 3 x_7+5 x_8+9 x_9 \leq 32 \\
-    \quad & x_7, x_8, x_9 \geq 0,
- \quad x_7, x_8, x_9 \in \mathbb{Z}
-    \end{aligned} \nonumber
-$$\\
-
-
-\noindent After solving the subproblems, we get the following solutions,\\
-
-\begin{align}
-\text{max} & \quad 8 x_1+5 x_2+6 x_3+9 x_4+7 x_5+9 x_6+6 x_7+5 x_8  + 6 x_9 \nonumber \\ 
-\text{s.t.} & \quad 5 x_1+ 3 x_2+4 x_3+2 x_4+7 x_5+3 x_6+4 x_7+6 x_8 + x_9 \leq 30 \nonumber \\
-&\quad 2 x_1 \leq 16\nonumber\\ 
-& \quad  3 x_4 \leq 27 \nonumber\\
-& \quad  10 x_7 \leq 60 \nonumber\\
-& \quad x_i \geq 0 \quad \forall i \in \{1, \cdots,9\} \quad \text{and} \quad x_i \in \mathbb{Z} \quad \forall i \in \{1, \cdots,9\} \nonumber
-\end{align} \nonumber
+\noindent After defining the RMP, we perform master iterations until we cannot find a positive reduced cost column. A master iteration consists of solving the RMP and then looking for a variable $x_j$ with a positive reduced cost. We do this by solving the column generation subproblem (CGS), $\min_{i =1,\cdots,n} \bar{c}_i $.
 \\
+
+\newpage 
+
+\noindent Now,
+
+
+\newpage
+
+\noindent \textbf{2.3 Column Generation for the Cutting Stock Problem}
+\\
+
+\noindent A common example of column generation is using it to solve the cutting stock problem more efficiently. In this problem, we have a set of items that we want to cut from a stock item. We want to minimize the waste, i.e. the amount of material that is left over after cutting the items. Our minimization problem looks like this,
+
+$$
+\begin{aligned}
+    \min & \sum_{j=1}^{m} w_j x_j \\
+    \text{s.t.} & \sum_{j=1}^{m} a_{ij} x_j = b_i \quad \forall i \in \{1, \cdots, n\} \\
+    & x_j \geq 0 \quad \forall j \in \{1, \cdots, m\}
+\end{aligned}
+$$
+
+\noindent where $w_j$ is the waste of the $j$th pattern, $x_j$ is the number of times the $j$th pattern is used, $a_{ij}$ is the number of times the $i$th item appears in the $j$th pattern, and $b_i$ is the number necessary of the $i$th item based on the orders.
+\\
+
+\noindent We now create a restricted master problem (RMP) by taking a subset of the patterns from the master problem, $I$. A common heuristic is to take the patterns that contain the max of each order as this initial set.
+
+$$
+\begin{aligned}
+    \min & \sum_{j \in I} w_j x_j \\
+    \text{s.t.} & \sum_{j \in I} a_{ij} x_j = b_i \quad \forall i \in \{1, \cdots, n\} \\
+    & x_j \geq 0 \quad \forall j \in \{1, \cdots, m\}
+\end{aligned}
+$$
+
+\noindent Now, we need to solve the column generation subproblem (CGS) to find the column with the minimum reduced cost. This is a knapsack problem of the form,
+
+$$
+\begin{aligned}
+    \min_i \quad & \bar{c}_i = c_i - \sum_{j \in I} y_j a_{ij} \\
+    \text{s.t.} \quad  & \sum_{j \in {1,\cdots,m}} a_{i,j} w_j \leq W \\
+    & a_{i,j} \geq 0 \quad \forall j \in \{1, \cdots, m\}
+\end{aligned}
+$$
+
+\noindent where $w_j$ is the size of the order $j$ and $y_j$ is the dual variable for the order $j$. Now, we can rewrite this problem as simply,
+
+$$
+\begin{aligned}
+    \max_i \quad & \sum_{j \in I} y_j a_{ij} \\
+    \text{s.t.} \quad  & \sum_{j \in {1,\cdots,m}} a_{i,j} w_j \leq W \\
+    & a_{i,j} \geq 0 \quad \forall j \in \{1, \cdots, m\}
+\end{aligned}
+$$
+\\
+
+\noindent Now after we solve the CGS, if our value is $\geq 0$, then we know that the current solution to the RMP is optimal. If it is less than 0, then we know that we can improve the solution to the RMP by adding the column corresponding to the CGS solution. We then add this column to the RMP, solve again and repeat until we have no positive reduced cost columns.
+\\
+
+\noindent \textbf{2.3.2 Implementation}
+\\
+
+\noindent We implemented this in Python using the Gurobi Optimizer. We used the Gurobi Optimizer because it is a state of the art solver for linear programs and column generation. We used the Python interface for Gurobi and the column generation algorithm is implemented in the Gurobi Python API. Consider the following pseudocode for the column generation algorithm,
+\\
+
+\noindent \textbf{2.3.3 Simple Example}
+\\
+
+\noindent Consider the following example, we have $W = 15$, with three orders, $w_1 = 4, w_2 = 6, w_3 = 7$, for which we respectively have $b_1 = 80, b_2 = 50, b_3 = 100$.
+\\
+
+\noindent We start by creating an RMP using the heuristic of taking the patterns that contain the max of each order. This means we have three columns in the RMP,
+$$
+\begin{aligned}
+a_1 &= \begin{bmatrix} 3 \\ 0 \\ 0 \end{bmatrix}, \quad
+a_2 &= \begin{bmatrix} 0 \\ 2 \\ 0 \end{bmatrix}, \quad
+a_3 &= \begin{bmatrix} 0 \\ 0 \\ 2 \end{bmatrix}
+\end{aligned}
+$$
+
+\noindent So our RMP looks like this,
+
+$$
+\begin{aligned}
+    \min \quad & x_1 + x_2 + x_3 \\
+    \text{s.t.} \quad & 3x_1 = 80 \\
+    & 2x_2 = 50 \\
+    & 2x_3 = 100 \\
+    & x_1, x_2, x_3 \geq 0
+\end{aligned}
+$$
+
+\noindent We now solve the RMP and find that the solution is $x_1 = 80/3, x_2 = 25, x_3 = 50$. We now need to solve the CGS to find the column with the minimum reduced cost. Our CGS is the following, $\min_i 1 - \sum_{j \in P} y_j a_{ij}$, which we can rewrite as a maximization problem, 
+
+$$
+\begin{aligned}
+    \max \quad & a_1 y_1 + a_2 y_2 + a_3 y_3 = \frac{1}{3} a_1 + \frac{1}{2} a_2 + \frac{1}{2} a_3 \\
+    \text{s.t.} \quad & 4a_1 + 6a_2 + 7a_3 \leq 15 \\
+    & a_1, a_2, a_3 \geq 0
+\end{aligned}
+$$
+
+\noindent We solve this and find that the solution is $a_1 = 2, a_2 =0, a_3 = 1$. We now check the reduced cost of this column,
+$$ 1 - \frac{1}{3} \cdot 2 - \frac{1}{2} \cdot 0 - \frac{1}{2} \cdot 1 = - \frac{1}{6} $$
+
+\noindent Since this is negative, we add this column to the RMP and solve again. We solve the RMP again and get an improved solution. Now we solve the CGS again, however this new solution, $a_1 = 2, a_2 = 1, a_3 = 0$ has a positive reduced cost which implies our solution is optimal and so we terminate.
+
+
+\newpage
+
+\noindent \textbf{\large{3. Dantzig-Wolfe Decomposition}} \\
+\\
+
+\noindent \textbf{3.1 Overview}
+\\
+
+\noindent We'll start by giving a high level view of the algorithm, which is basically doing these steps (Wikipedia):
+\begin{enumerate}
+    \item Start with a \underline{feasible} solution to the RMP, formulate new objective functions for each subproblem such that the subproblems will offer solutions that improve the current objective of the master program.
+    \item Re-solve the subproblems given their new objective functions, the optimal value for each subproblem is offered to the master program.
+    \item Add one or all new columns generated by the solutions to the subproblems to the RMP based on respective ability to improve the objective.
+    \item Perform \(x\) iterations of the simplex algorithm in the master program, where \(x\) is the number of columns incorporated.
+    \item If the objective is improved, loop. Otherwise, return the solution.
+\end{enumerate}
+
+\noindent D-W Decomposition is a special case of column generation where we have a block angular structure for our constraints. Our master problem looks like this,
+
+$$
+\begin{aligned}
+    \text{max} \quad & c^T x \\
+    \text{s.t.} \quad & \begin{bmatrix}
+        A_{1} & A_{2} & \cdots & A_{n-1} & A_{n} \\
+        A_{n+1} & 0 & \cdots & 0 & 0 \\
+        0 & A_{n+2} & \cdots & 0 & 0 \\
+        \vdots & \vdots & \ddots & \vdots & \vdots \\
+        0 & 0 & \cdots & 0 & A_{2n}
+    \end{bmatrix} x = b \\
+    & x \geq 0\\
+\end{aligned}
+$$
+\noindent \textbf{3.2 Algorithm Details}
+\\
+
+\noindent Now, since all the blocks in the independent constraint blocks are independent, we can restate the master problem as,
+
+$$
+\begin{aligned}
+    \text{max} \quad & c^T x \\
+    \text{s.t.} \quad & [A_1, \ldots, A_n] x = b_0 \\
+    & x_i \in S_i \quad \forall i \in \{1, \ldots, n\}
+\end{aligned}
+$$
+
+\noindent We denote the feasible region of the subproblems as 
+$$S_i = \{x_i \geq 0 | A_{n+i} x_i = b_i\}$$
+\noindent Assume that $S_i$ is bounded for simplicity (it can easily be extended to having unbounded regions, we would consider unbounded rays). We have a set of vertices $V_i = \{(v_{i,1}, \ldots, v_{i,n}) | v_{i,j} \in S_i\}$ which completely defines the feasible region of the subproblem. Since the feasible region is convex, we can represent every $x_i \in S_i$ as a convex combination of the vertices $v_{i,j}$, i.e. $x_i = \sum_{j=1}^{n} \lambda_{i,j} v_{i,j}$ and with $\sum_{j=1}^{n} \lambda_{i,j} = 1$.
+\\
+
+\noindent Now, we can transform the RMP by using the $\lambda_{i,j}$ as the new decision variables.
+
+$$
+\begin{array}{clll}
+    \max & \sum_{i=1}^n \sum_{j=1}^{N_i} \lambda_{i, j}\left(c_i v_{i, j}\right) & & \\
+    \mathrm{s.t.} & \sum_{i=1}^n \sum_{j=1}^{N_i} \lambda_{i, j}\left(A_{i} v_{i, j}\right) & =b_0 & \\
+    & \sum_{j=1}^{N_i} \lambda_{i, j} & =1 & \forall i=1,\ldots, n \\
+    & \lambda_{i, j} & \geq 0 & \forall i, j
+\end{array}\\
+$$
+
+\noindent Notably, we reduced the number of constraints to $n + n_0$ (the number of binding constraints). However, there are now substantially more variables, which is why we will use an altered simplex method. We now proceed to create an RMP with a subset of the lambdas. It is important to note that we need to include necessary constraints to ensure the solution is feasible.
+\\
+
+\noindent After creating and solving the RMP, we proceed by creating dual variables, $y_0 \in \mathbb{R}^{n_0}$ for the binding constraints and $z \in \mathbb{R}^{n}$ for the lambdas. Note that each column represents one vertex. And so, we want to find out which columns have positive reduced cost (because this is a maximization problem). If we consider the column for $\lambda_{i, j}$, then the reduced cost is 
+$$ \bar{c}_i = c_i v_{i, j} - y_0 A_{i} v_{i, j} - z_i $$
+
+\noindent So similar to the subproblem in the column generation algorithm, we will solve the following CGS, 
+
+$$
+\begin{aligned}
+    \min_i \quad & y_0 A_{i} v_{i, j} + z_i 
+    \text{s.t.} \quad & A_{i} v_{i, j} = b_i \\
+    & v_{i, j} \geq 0
+\end{aligned}
+$$
+
+\noindent Now, similar to the column generation algorithm, we solve the CGS for each subproblem and check if the reduced cost is positive (since this is a maximization problem). If it is, we add the column to the RMP and solve again. If it is not, we know that the current solution to the RMP is optimal and we terminate.
+\\
+
+\noindent The main difference between the D-W Decomposition and the Column Generation algorithm is the step where we consider the subproblems w.r.t. the lambdas of the subproblems.
+\\
+
+\noindent \textbf{3.3 Example}
+\\
+
+\noindent Consider the following example,
+\\
+
+\newpage
 
 \noindent \textbf{\large{4. Block Selection Linear Program}} \\
 
+\noindent \textbf{4.1 Defining the problem}
+\\
+
 \noindent This is a subproblem of larger mine planning optimization problems. The objective is to maximize the total value of the blocks selected, subject to the constraints that the total volume of the selected blocks does not exceed the available volume, and that the total value of the selected blocks does not exceed the available value. Here is a formal version of the problem for two modes, $\{A, B\}$ and two ore types $\{I, II\}$.
+\\
 
-\begin{align} 
-    \max & \sum_{b \in \mathfrak{B}}\left(V_{b A I} m_{b A I}+V_{b A I I} m_{b A II}+V_{b B I} m_{b B I}+V_{b B II} m_{b B II}\right) \\ 
-    \text { st. } & \sum_{b \in \mathfrak{B}}\left(\frac{m_{b A I}}{r_{A I}}+\frac{m_{b A II}}{r_{A II}}+\frac{m_{b B I}}{r_{B I}}+\frac{m_{b B II}}{r_{B II}}\right) \leqslant t_{\text {period }} \\ 
-    & m_{b A I}+m_{b B I} \leqslant m_{b I} \quad \forall b \in \mathfrak{B} \\ 
-    & m_{b A II}+m_{b B II} \leqslant m_{b II} \quad \forall b \in \mathfrak{B} \\ 
-    & m_{i j k}, r_{j k} \geqslant 0 \quad \forall i \in \mathfrak{B}, j \in \text {modes, } k \in \text {ores }
-\end{align}
+$$
+\begin{aligned} 
+    \max & \sum_{b \in B}\left(V_{b, A, I} m_{b, A, I}+V_{b, A, II} m_{b, A, II}+V_{b, B, I} m_{b, B, I}+V_{b, B, II} m_{b, B, II}\right) \\ 
+    \text { st. } & \sum_{b \in B B}\left(\frac{m_{b, A, I}}{r_{A, I}}+\frac{m_{b, A, II}}{r_{A, II}}+\frac{m_{b, B, I}}{r_{B, I}}+\frac{m_{b, B, II}}{r_{B, II}}\right) \leqslant t_{\text {period }} \text { (1) } \\
+    & r_{A,I} m_{b, A, I} + r_{A,II} m_{b, A, II} =0 \quad \forall b \in \mathcal{B} \quad(2) \\
+    & r_{B,I} m_{b, B, I} + r_{B,II} m_{b, B, II} =0 \quad \forall b \in \mathcal{B} \quad(3) \\
+    & m_{b, A, I}+m_{b, B, I} \leqslant m_{b, I}  \\ 
+    & m_{b, A, I}+m_{b, B, I} \leqslant m_{b, I}  \quad \forall b \in \mathcal{B} \quad(4) \\ 
+    & m_{i j k}, r_{j k} \geqslant 0 \quad \forall i \in \mathcal{B}, j \in \text { modes, } k \in \text { ores }
+\end{aligned}
+$$
+\\
 
-\noindent where $\mathfrak{B}$ is the set of blocks, $V_{b j k}$ is the value of block $b$ in mode $j$ and ore $k$, $m_{b j k}$ is the volume of block $b$ in mode $j$ and ore $k$, $r_{j k}$ is the recovery rate of ore $k$ in mode $j$, and $t_{\text {period }}$ is the total time available for block selection.\\
+\noindent where $\mathfrak{B}$ is the set of blocks, $V_{b j k}$ is the value of block $b$ in mode $j$ and ore $k$, $m_{b j k}$ is the volume of block $b$ in mode $j$ and ore $k$, $r_{j k}$ is the recovery rate of ore $k$ in mode $j$, and $t_{\text {period }}$ is the total time available for block selection.
+\\
 
-\noindent The first constraint represents the time constraint, that is to say that the total volume of blocks divided by the rate of recovery of the ore must be less than or equal to the total time available. The second and third constraints represent the volume constraints, that is to say that the volume of blocks selected in mode $j$ and ore $k$ must be less than or equal to the total volume of blocks in mode $j$ and ore $k$.\\
+\noindent The first constraint represents the time constraint, that is to say that the total volume of blocks divided by the rate of recovery of the ore must be less than or equal to the total time available. The second and third constraints represent the volume constraints, that is to say that the volume of blocks selected in mode $j$ and ore $k$ must be less than or equal to the total volume of blocks in mode $j$ and ore $k$.
+\\
 
+\noindent \textbf{4.2 Subproblems}
+\\
+
+\noindent This linear program is an ideal application of Dantzig-Wolfe because of the block angular structure of the constraints, but also because the subproblems are quite simple and all the same. Basically our feasible region will always look like this,
+\\
+
+\noindent \textbf{4.2.1 Column Generation}
+\\
+
+\noindent \textbf{4.2.2 Dantzig-Wolfe}
+\\
+
+\noindent \textbf{4.3 Implementation details}
+\\
+
+\noindent \textbf{4.4 Computational Analysis}
+\\
+
+\noindent \textbf{4.5 Example with 2 modes and 2 ores}
+\\
+
+\newpage 
+
+\begin{thebibliography}{1}
+
+\bibitem{hillier_lieberman}
+    Hillier, F. S., \& Lieberman, G. J. (2015). Introduction to Operations Research (10th ed.). McGraw-Hill Education.
+
+\bibitem{cornell_optimization}
+Cornell University. ``Column Generation Algorithms.'' Optimization @ Cornell CBE. 
+\url{https://optimization.cbe.cornell.edu/index.php?title=Column_generation_algorithms}
+
+\bibitem{cornell_dantzig_wolfe}
+Cornell University. ``Dantzig-Wolfe Decomposition.'' Optimization @ Cornell CBE. 
+\url{https://optimization.cbe.cornell.edu/index.php?title=Dantzig-Wolfe_decomposition}
+
+\bibitem{wikipedia_column_generation}
+Wikipedia. ``Column Generation.'' Wikipedia. 
+\url{https://en.wikipedia.org/wiki/Column_generation}
+
+\bibitem{wikipedia_dantzig_wolfe}
+Wikipedia. ``Dantzig-Wolfe decomposition.'' Wikipedia. 
+\url{https://en.wikipedia.org/wiki/Dantzig-Wolfe_decomposition}
+
+\bibitem{poirrier_colgen}
+Poirrier, E. (n.d.). Column Generation. Retrieved from \url{https://www.poirrier.ca/courses/co353/d/colgen.pdf}
+
+\end{thebibliography}
 
 \end{document}

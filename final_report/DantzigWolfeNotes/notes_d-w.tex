@@ -2,6 +2,9 @@
 \usepackage{mathbbol}
 \usepackage{amsmath}
 \usepackage{amssymb}
+\usepackage{pgfplots}
+\usepackage{tikz}
+% \usepackage{fillbetween} % This package is causing the error as it is not found
 \begin{document}
 \noindent Elliot F. Poirier
 \hfill
@@ -32,23 +35,36 @@ A_{n+1} & 0 & \cdots & 0 & 0 \\
 
 \noindent where $A_{i}$ are submatrices of size $m_i \times n_i$. We call the first $n$ matrices $A_1, A_2, \cdots, A_{n-1}$ the bounding constraints and the last $n$ matrices the independent constraints. Notice that this easily becomes a linear program that looks like this, 
 
+$$
 \begin{aligned}
 \text{maximize} \quad & \sum_{i=1}^{n} \vec{c}_i \vec{x}_i \\
 \text{subject to} \quad & [A_1, \cdots, A_n, I] \vec{x}^T = \vec{b}_0 \quad \text{  linking constraints}\\
 & A_{n+i} \vec{x}_i = \vec{b}_i, \quad \forall i \in \{1, \cdots, n\} \quad \text{  independent constraints} \\
 & \vec{x}^T \geq 0, \quad \vec{x}_i \geq 0, \quad \forall i \in \{1, \cdots, n\} \quad \text{  non-negativity constraints}
 \end{aligned}
-\\
-\\
+$$
 
 \noindent In this linear program, the $\vec{c}_i$ are the costs and $\vec{x} = [\vec{x}_1, \cdots, \vec{x}_n]^T$ are the decision variables and $\vec{b}_i$ are the right hand side of the constraints. The aim of the Dantzig-Wolfe decomposition is to be more computationally efficient in solving this problem. We start with a \textbf{restricted master problem} (RMP), which usually encompasses all the linking constraints and then check the independent constraints one by one by solving them as subproblems.
 
 \newpage
 
-\noindent \textbf{\large{2. Dantzig-Wolfe Decomposition}}
+\noindent \textbf{\large{2. Column Generation}}
 \\
 
 \noindent \textbf{2.1 Intro}
+\\
+
+\noindent Column generation is a method for solving large scale linear programs. It is a variant of the simplex algorithm that is used to solve linear programs with a large number of variables. The idea is to start with a small subset of the variables and then iteratively add variables to the problem until the solution is optimal.
+\\
+
+\noindent In a more formal sense, we have our \textbf{master problem} (MP) and our \textbf{restricted master problem} (RMP). The RMP is obtained by taking a subset fo the variables from the MP. We iteratively solve the RMP and then add variables to the RMP that were not in the optimal solution. This process is repeated until the MP is optimal.
+
+\newpage
+
+\noindent \textbf{\large{3. Dantzig-Wolfe Decomposition}}
+\\
+
+\noindent \textbf{3.1 Intro}
 \\
 
 \noindent We'll start by giving a high level view of the algorithm, which is basically doing these steps (Wikipedia):
@@ -62,21 +78,24 @@ A_{n+1} & 0 & \cdots & 0 & 0 \\
 
 \noindent Note that Dantzig-Wolfe is most effective when the subproblems are easy to solve. Now, let's break it down into more detail.  The first step consists of solving the RMP and then defining the objective functions. The RMP looks like this,
 
+$$
 \begin{aligned}
     \text{maximize} \quad & \sum_{i=1}^{n} \vec{c}_i \vec{x}_i \\
     \text{subject to} \quad & [A_1, \cdots, A_n, I] \vec{x}^T = \vec{b}_0  \\
     & \vec{x}^T \geq 0\\
 \end{aligned}
+$$
 \\
 \\
 
 \noindent The subproblems look like this, for every $i$th subproblem,
-
+$$
 \begin{aligned}
     \text{maximize} \quad & \vec{c}_i \vec{x}_i \\
     \text{subject to} \quad & A_{n+i} \vec{x}_i = \vec{b}_i \\
     & \vec{x}_i \geq 0
 \end{aligned}
+$$
 \\
 
 \noindent What interests us is the feasible region of the subproblems, we will denote them as $S_i = \{\vec{x}_i \geq 0 | A_{n+i} \vec{x}_i = \vec{b}_i\}$. Assume that $S_i$ is bounded for simplicity (it can easily be extended to having unbounded regions, we would consider unbounded rays). We have a set of vertices $V_i = \{(v_{i,1}, \cdots, v_{i,n}) | v_{i,j} \in S_i\}$ which completely defines the feasible region of the subproblem. This implies that we can represent every $x_i \in S_i$ as a convex combination of the vertices $v_{i,j}$, i.e. $\exists \{\lambda_{i,j} \geq 0\}_j \text{ s.t. } x_i = \sum_{j=1}^{n} \lambda_{i,j} v_{i,j}$ and with $\sum_{j=1}^{n} \lambda_{i,j} = 1$ (this follows from the representation theorem).
@@ -85,20 +104,21 @@ A_{n+1} & 0 & \cdots & 0 & 0 \\
 \noindent Now, we can transform the RMP by using the $\lambda_{i,j}$ as the new decision variables.
 \\
 
+$$
 \begin{array}{clll}
     \min & \sum_{i=1}^m \sum_{j=1}^{N_i} \lambda_{i, j}\left(c_i v_{i, j}\right) & & \\
     \mathrm{s.t.} & \sum_{i=1}^m \sum_{j=1}^{N_i} \lambda_{i, j}\left(A_{0, i} v_{i, j}\right) & =b_0 & \\
     & \sum_{j=1}^{N_i} \lambda_{i, j} & =1 & \forall i=1,2, \ldots, m \\
     & \lambda_{i, j} & \geq 0 & \forall i, j
 \end{array}\\
+$$
 
 \noindent Notably, we reduced the number of constraints to $m + m_0$, since there aren now $m$ independent constraints and $m_0$ linking constraints. Basically, we squashed all the independent constraint blocks into single constraints. However, there are now way more variables, which is why we will use an altered simplex method.
 \\
-
-\noindent \textbf{2.2 Altered Simplex}
+\noindent \textbf{3.2 Altered Simplex}
 \\
 
-\noindent We start by creating the dual variables, $y_0 \in \mathbb{R}^{m_0}$ and $z \in \mathbb{R}^{m}$ which set the sum $\sum_{i=1}^{m} \lambda_{i, j} =1$. Note that each column represents one vertex. And so, we want to find out which columns have negative reduced cost. If we consider the column for $\lambda_{i, j}$, then the reduced cost is 
+\noindent We start by creating the dual variables, $y_0 \in \mathbb{R}^{m_0}$ and $z \in \mathbb{R}^{m}$ which set the sum $\sum_{i=1}^{m} \lambda_{i, j} =1$. Note that each column represents one vertex. And so, we want to find out which columns have negative reduced cost (because this is a minimization problem). If we consider the column for $\lambda_{i, j}$, then the reduced cost is 
 $$ \bar{c}_i = c_i v_{i, j} - y_0 A_{0, i} v_{i, j} - z_i $$
 
 \noindent which we can obtain by taking the inner product of the dual variables with the column for $\lambda_{i, j}$.
@@ -113,12 +133,13 @@ $$\left[\begin{array}{ll}
 
 \noindent We now consider the resulting subproblem,
 \\
-
+$$
 \begin{array}{rcl}
     \min & \bar{c}_i x_i & \\
     \text { s.t. } & A_{n+i} x_i & =b_i, \\
     & x_i & \geq 0
 \end{array}
+$$
 \\
 
 \noindent Since $S_i$ is nonempty (otherwise the master problem is infeasible), this problem must contain a vertex $\textbf{v}$ which is the optimal solution. If $\bar{c}_i\textbf{v}<z_i$ then we know that $\textbf{v}$ is a negative cost vertex and we should add it to the basis. If this is false $\forall i$, then no column of $S_i$ has negative reduced cost. Hence, after solving the subproblems for all $S_i$, we either find a negative reduced cost column or otherwise we show that the current solution to the master problem is optimal.
@@ -127,7 +148,7 @@ $$\left[\begin{array}{ll}
 \noindent Notice that this in itself is fundamentally a revised version of the simplex algorithm, however with significantly reduced usage of space. Additionally, it is more efficient computationally since the slave problems can be solved in parallel (that is the big advantage), we simply choose the first negative reduced cost column subproblem to be computed.
 \\
 
-\noindent \textbf{2.3 Examples}
+\noindent \textbf{3.3 Examples}
 \\
 
 \noindent Our particular interest with this algorithm stems from the particular structure of the optimization problem we are trying to solve. Let us formalize the problem of block allocation (mining blocks) in the context of mine planning. Our particular problem is of this form, 
@@ -135,14 +156,16 @@ $$\left[\begin{array}{ll}
 
 $\begin{aligned} 
     \max & \sum_{b \in B}\left(V_{b, A, I} m_{b, A, I}+V_{b, A, II} m_{b, A, II}+V_{b, B, I} m_{b, B, I}+V_{b, B, II} m_{b, B, II}\right) \\ 
-    \text { st. } & \sum_{b \in B B}\left(\frac{m_{b, A, I}}{r_{A, I}}+\frac{m_{b, A, II}}{r_{A, II}}+\frac{m_{b, B, I}}{r_{B, I}}+\frac{m_{b, B, II}}{r_{B, II}}\right) \leqslant t_{\text {period }} \text { (1) } \\ 
+    \text { st. } & \sum_{b \in B B}\left(\frac{m_{b, A, I}}{r_{A, I}}+\frac{m_{b, A, II}}{r_{A, II}}+\frac{m_{b, B, I}}{r_{B, I}}+\frac{m_{b, B, II}}{r_{B, II}}\right) \leqslant t_{\text {period }} \text { (1) } \\
+    & r_{A,I} m_{b, A, I} + r_{A,II} m_{b, A, II} =0 \quad \forall b \in \mathcal{B} \quad(2) \\
+    & r_{B,I} m_{b, B, I} + r_{B,II} m_{b, B, II} =0 \quad \forall b \in \mathcal{B} \quad(3) \\
     & m_{b, A, I}+m_{b, B, I} \leqslant m_{b, I}  \\ 
-    & m_{b, A, I}+m_{b, B, I} \leqslant m_{b, I}  \quad \forall b \in \mathcal{B} \quad(3) \\ 
+    & m_{b, A, I}+m_{b, B, I} \leqslant m_{b, I}  \quad \forall b \in \mathcal{B} \quad(4) \\ 
     & m_{i j k}, r_{j k} \geqslant 0 \quad \forall i \in \mathcal{B}, j \in \text { modes, } k \in \text { ores }
 \end{aligned}$
 \\
 
-\noindent With (1) being that total processing time cannot be greater than the total period & (2) being that the total amount of ore being processed in a block cannot exceed the capacity of the block. It is to be noted that we are missing a constraint related to the rate of extraction.
+\noindent With (1) being that total processing time cannot be greater than the total period and (2) being that the total amount of ore being processed in a block cannot exceed the capacity of the block. It is to be noted that we are missing a constraint related to the rate of extraction.
 \\
 
 \noindent Now, we will look at two examples to illustrate this, both with two modes (A, B) and two ore types (I, II), one with one block, and one with two blocks. 
@@ -166,14 +189,608 @@ $\begin{aligned}
 \\
 
 $\begin{aligned} 
-    \max & \left(V_{1,A, I} m_{1,A, I}+V_{1,A, II} m_{1,A, II}+V_{1,B, I} m_{1,B, I}+V_{1,B, II} m_{1,B, II}\right) + \left(V_{2,A, I} m_{2,A, I}+V_{2,A, II} m_{2,A, II}+V_{2,B, I} m_{2,B, I}+V_{2,B, II} m_{2,B, II}\right) \\ 
-    \text { st. } &   \left(\frac{m_{1,A, I}}{r_{1,A, I}}+\frac{m_{1,A, II}}{r_{1,A, II}}+\frac{m_{1,B, I}}{r_{1,B, I}}+\frac{m_{1,B, II}}{r_{1,B, II}}\right) + \left(\frac{m_{2,A, I}}{r_{2,A, I}}+\frac{m_{2,A, II}}{r_{2,A, II}}+\frac{m_{2,B, I}}{r_{2,B, I}}+\frac{m_{2,B, II}}{r_{2,B, II}}\right) \leqslant t_{\text {period }} \text { (1) } \\ 
-    & m_{1,A, I}+m_{1,B, I} \leqslant m_{I}  \\ 
-    & m_{1,A, II}+m_{1,B, II} \leqslant m_{II}  \\ 
-    & m_{2,A, I}+m_{2,B, I} \leqslant m_{I}  \\ 
-    & m_{2,A, II}+m_{2,B, II} \leqslant m_{II}  \\ 
+    \max & V_A(m_{1,A,I} +m_{1,A,II} + m_{2,A,I}+ m_{2,A,II}) + V_B(m_{1,B,I} + m_{1,B,II} + m_{2,B,I} + m_{2,B,II}) \\ 
+    \text { st. } & \frac{m_{1,A,I} + m_{2,A,I}}{r_{A,I}} + \frac{m_{1,A,II} + m_{2,A,II}}{r_{A,II}} + \frac{m_{1,B,I} + m_{2,B,I}}{r_{B,I}} + \frac{m_{1,B,II} + m_{2,B,II}}{r_{B,II}} \leqslant t_{\text {period }} \text { (1) } \\ 
+    & (r_{1,A,I} m_{1,A, I} + r_{2,A,I} m_{2,A, I}) - (r_{1,A,II} m_{1,A, II} + r_{2,A,II} m_{2,A, II}) = 0\\
+    & (r_{1,B,I} m_{1,B, I} + r_{2,B,I} m_{2,B, I}) - (r_{1,B,II} m_{1,B, II} + r_{2,B,II} m_{2,B, II}) = 0\\
+    & m_{1,A, I}+m_{1,B, I} \leqslant m_{1,I}  \\ 
+    & m_{1,A, II}+m_{1,B, II} \leqslant m_{1,II}  \\ 
+    & m_{2,A, I}+m_{2,B, I} \leqslant m_{2,I}  \\ 
+    & m_{2,A, II}+m_{2,B, II} \leqslant m_{2,II}  \\ 
     & m_{i,j,k}, r_{j,k} \geqslant 0 \quad \forall i \in \{1,2\} \quad j \in \{A,B\} \quad k \in \{I,II\}
+\end{aligned}$\\
+
+\noindent Then we the feasible polytope for the subproblems, we have 
+\\
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}
+        \begin{axis}[
+            xlabel={$m_{1,A, I}$},
+            ylabel={$m_{1,B, I}$},
+            axis lines=middle,
+            grid=both,
+            width=10cm,
+            height=10cm,
+            legend pos=outer north east,
+            legend cell align={left},
+            legend style={font=\small},
+            xtick=\empty,
+            ytick=\empty
+        ]
+        % Constraint: m_{A, I} + m_{B, I} <= m_{I}
+        \addplot[name path=A, domain=-10:20, samples=2, thick] {10 - x};
+
+        % Feasible region
+        \addplot [
+            thick,
+            color=green,
+            fill=green, 
+            fill opacity=0.5
+        ] fill between[
+            of=A and axis,
+            soft clip={domain=0:10},
+        ];
+        
+        % Labels for intersects
+        \node at (axis cs:11,0) [anchor=north west] {$(m_{1,I},0)$};
+        \node at (axis cs:6,10) [anchor=south east] {$(0,m_{1,I})$};
+        \node at (axis cs:0,0) [anchor=south east] {$(0,0)$};
+        
+        % Intersection points
+        \addplot[only marks, mark=*] coordinates {(0,0) (10,0) (0,10)};
+        \end{axis}
+    \end{tikzpicture}
+    \caption{Feasible polytope for the constraint $m_{A, I} + m_{B, I} \leqslant m_{I}$}
+    \label{fig:feasible_polytope}
+\end{figure}
+
+\noindent Firstly, we rewrite it in terms of subproblem formulation, as follows,
+\\
+
+$
+\begin{aligned} 
+    \max & [V_A, V_B] (x_{1,I}^T + x_{2,I}^T + x_{1,II}^T + x_{2,II}^T) \\ 
+    \text { st. } & [\frac{1}{r_{A,I}}, \frac{1}{r_{B,I}}](x_{1,I}^T + x_{2,I}^T) + [\frac{1}{r_{A,II}}, \frac{1}{r_{B,II}}](x_{1,II}^T + x_{2,II}^T) \leqslant t_{\text {period }} \text { (1) } \\ 
+    & ([r_{A,I},0] x_{1,I}^T + [r_{A,I},0] x_{2,I}^T) - ([r_{A,II},0] x_{1,II}^T + [r_{A,II},0] x_{2,II}^T) = 0\\
+    & ([0,r_{B,I}] x_{1,I}^T + [0,r_{B,I}] x_{2,I}^T) - ([0,r_{B,II}] x_{1,II}^T + [0,r_{B,II}] x_{2,II}^T) = 0\\
+    & x_{b,i} \in X_{b,i} \quad \forall b \in \{1,2\} \quad i \in \{I,II\} \quad \text{ (subproblem formulation)}
+\end{aligned}
+$\\
+
+\noindent So now, we assign lambda values to the vertices of the feasible polytope, and since it is a convex polytope, we can get our x values by taking the convex combination of the vertices. As follows, 
+\\
+
+$ 
+\begin{aligned}
+x_{b,I} &= [m_{b,A,I}, m_{b,B,I}]= v_{b,1,I} \lambda_{b,1,I} + v_{b,2,I} \lambda_{b,2,I} + v_{b,3,I} \lambda_{b,3,I}  \\
+&= [0, m_{b,I}] \lambda_{b,1,I} + [m_{b,I}, 0] \lambda_{b,2,I} + [0,0] \lambda_{b,3,I}\\
+&= [0, \lambda_{b,1,I} m_{b,I}] + [\lambda_{b,2,I} m_{b,I}, 0] + [0,0] \lambda_{b,3,I}\\
+&= [\lambda_{b,2,I} m_{b,I}, \lambda_{b,1,I} m_{b,I}] + [0,0] \lambda_{b,3,I}
+\end{aligned}
+$
+\\
+
+\noindent So now we can rewrite the problem in terms of the lambda values as the new variables.\\
+
+\noindent $\begin{aligned} 
+    \max & [V_A, V_B] (([\lambda_{1,2,I} m_{1,I}, \lambda_{b,1,I} m_{1,I}] + [0,0] \lambda_{1,3,I})^T + ([\lambda_{1,2,II} m_{1,II}, \lambda_{1,1,II} m_{1,II}] + [0,0] \lambda_{1,3,II})^T \\
+    &+ ([\lambda_{2,2,I} m_{2,I}, \lambda_{2,1,I} m_{2,I}] + [0,0] \lambda_{2,3,I})^T + ([\lambda_{2,2,II} m_{2,II}, \lambda_{2,1,II} m_{2,II}] + [0,0] \lambda_{2,3,II})^T) \\ 
+    \text { st. } & [\frac{1}{r_{A,I}}, \frac{1}{r_{B,I}}](([\lambda_{1,2,I} m_{b1,I}, \lambda_{1,1,I} m_{1,I}] + [0,0] \lambda_{1,3,I})^T + ([\lambda_{2,2,I} m_{2,I}, \lambda_{2,1,I} m_{2,I}] + [0,0] \lambda_{2,3,I})^T)\\
+    & + [\frac{1}{r_{A,II}}, \frac{1}{r_{B,II}}](([\lambda_{1,2,II} m_{1,II}, \lambda_{1,1,II} m_{1,II}] + [0,0] \lambda_{1,3,II})^T \\
+    & + ([\lambda_{2,2,II} m_{2,II}, \lambda_{2,1,II} m_{2,II}] + [0,0] \lambda_{2,3,II})^T) \leqslant t_{\text {period }} \text { (1) } \\ 
+    & ([r_{A,I},0] ([\lambda_{1,2,I} m_{1,I}, \lambda_{1,1,I} m_{1,I}] + [0,0] \lambda_{1,3,I})^T + [r_{A,I},0] ([\lambda_{2,2,I} m_{2,I}, \lambda_{2,1,I} m_{2,I}] + [0,0] \lambda_{2,3,I})^T) \\
+    & - ([r_{A,II},0] ([\lambda_{1,2,II} m_{1,II}, \lambda_{1,1,II} m_{1,II}] + [0,0] \lambda_{1,3,II})^T + [r_{A,II},0] ([\lambda_{2,2,II} m_{2,II}, \lambda_{2,1,II} m_{2,II}] \\
+    & + [0,0] \lambda_{2,3,II})^T) = 0\\
+    & ([0,r_{B,I}] ([\lambda_{1,2,I} m_{1,I}, \lambda_{1,1,I} m_{1,I}] + [0,0] \lambda_{1,3,I})^T + [0,r_{B,I}] ([\lambda_{2,2,I} m_{2,I}, \lambda_{2,1,I} m_{2,I}] + [0,0] \lambda_{2,3,I})^T) \\
+    & - ([0,r_{B,II}] ([\lambda_{1,2,II} m_{1,II}, \lambda_{1,1,II} m_{1,II}] + [0,0] \lambda_{1,3,II})^T + [0,r_{B,II}] ([\lambda_{2,2,II} m_{2,II}, \lambda_{2,1,II} m_{2,II}] \\
+    &+ [0,0] \lambda_{2,3,II})^T) = 0\\
+    & \sum_{j \leq 3} \lambda_{b,j,i} = 1 \quad \forall b \in \{1,2\} \quad i \in \{I,II\} \\
+    & \lambda_{b,j,i} \geq 0 \quad \forall b \in \{1,2\} \quad j \in \{1,2,3\} \quad i \in \{I,II\} 
 \end{aligned}$
+\\
+\\
+
+\noindent $\begin{aligned} 
+    \max & [V_A \lambda_{1,2,I} m_{1,I}, V_B \lambda_{1,1,I} m_{1,I}] + [V_A \lambda_{1,2,II} m_{1,II}, V_B \lambda_{1,1,II} m_{1,II}] \\
+    &+ [V_A \lambda_{2,2,I} m_{2,I}, V_B \lambda_{2,1,I} m_{2,I}] + [V_A \lambda_{2,2,II} m_{2,II}, V_B \lambda_{2,1,II} m_{2,II}] \\ 
+    \text { st. } & [\frac{1}{r_{A,I}}, \frac{1}{r_{B,I}}](([\lambda_{1,2,I} m_{1,I},  \lambda_{1,1,I} m_{1,I}])^T + ([\lambda_{2,2,I} m_{2,I}, \lambda_{2,1,I} m_{2,I}] )^T)\\
+    & + [\frac{1}{r_{A,II}}, \frac{1}{r_{B,II}}](([\lambda_{1,2,II} m_{1,II}, \lambda_{1,1,II} m_{1,II}])^T + ([\lambda_{2,2,II} m_{2,II}, \lambda_{2,1,II} m_{2,II}])^T) \\
+    &+ t_{\text{idle}} = t_{\text {period }} \text { (1) } \\ 
+    & (r_{A,I} \lambda_{1,2,I} m_{1,I} + r_{A,I} \lambda_{2,2,I} m_{2,I}) - (r_{A,II} \lambda_{1,2,II} m_{1,II} + r_{A,II} \lambda_{2,2,II} m_{2,II}) = 0\\
+    & (r_{B,I} \lambda_{1,1,I} m_{1,I} + r_{B,I} \lambda_{2,1,I} m_{2,I}) - (r_{B,II} \lambda_{1,1,II} m_{1,II} + r_{B,II} \lambda_{2,1,II} m_{2,II}) = 0\\
+    & \sum_{j \leq 3} \lambda_{b,j,i} = 1 \quad \forall b \in \{1,2\} \quad i \in \{I,II\} \\
+    & t_{\text{idle}}, \lambda_{b,j,i} \geq 0 \quad \forall b \in \{1,2\} \quad j \in \{1,2,3\} \quad i \in \{I,II\} 
+\end{aligned}$\\
+
+\noindent So this is the Master problem, now we proceed to create an RMP from a subset of variables in our master problem, it is to be noted that we can't only take pairs of one of the lambdas from a subproblem otherwise, we would create a problem that is not feasible. Hence, we should always include the zero lambdas for all the blocks that we choose to include in the RMP.
+\\
+
+\noindent Now consider the RMP with the variables, $\lambda_{1,2,I}, \lambda_{1,3,I}, \lambda_{2,2,I}, \lambda_{2,1,I}, \lambda_{1,3,I}, \lambda_{2,3,I} $.
+
+
+
+\noindent \textbf{\large{1. Transshipment Problem}} \\
+
+\begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,
+    thick,main node/.style={circle,fill=blue!20,draw,font=\sffamily\Large\bfseries}]
+
+\node[main node] (O1) {O1};
+\node[main node] (O2) [below of=O1] {O2};
+\node[main node] (J1) [right of=O1] {J1};
+\node[main node] (J2) [right of=O2] {J2};
+\node[main node] (J3) [right of=J1, yshift=-1cm] {J3}; % Adjusted position of J3
+\node[main node] (D1) [above right of=J3] {D1}; % Adjusted position of D1
+\node[main node] (D2) [below right of=J3] {D2}; % Adjusted position of D2
+
+\node [left of=O1, xshift=2cm] {10}; % Supply at O1
+\node [left of=O2, xshift=2cm] {15}; % Supply at O2
+\node [right of=D1, xshift=-2cm] {12}; % Demand at D1
+\node [right of=D2, xshift=-2cm] {13}; % Demand at D2
+
+\path[every node/.style={font=\sffamily\small}]
+(O1) edge node [left] {5} (O2)
+(O1) edge node [above] {5} (J1)
+(O2) edge node [above] {3} (J2)
+(O2) edge node [right] {4} (J1)
+(J1) edge node [above] {2} (D1)
+(J2) edge node [above] {2} (D2)
+(J1) edge node [right] {4} (J3)
+(J2) edge node [right] {6} (J3)
+(J3) edge node [above] {7} (D1)
+(J3) edge node [below] {8} (D2);
+\end{tikzpicture}
+
+\noindent We can formulate this problem as a linear program in the following way, 
+
+
+\begin{aligned}
+    \text{min} &\quad \sum_{u,v \in V} t_{u,v}x_{u,v} \\
+    \text{s.t.} &\quad \sum_{v \in V} x_{u,v} - \sum_{v \in V} x_{v,u} = a_u \quad \forall u \in V \\ 
+    & \quad \sum_{v \in V} x_{v,u} - \sum_{v \in V} x_{u,v} = b_u \quad \forall u \in V \\
+    & \quad \sum_{i=1}^m a_i = \sum_{j=1}^n b_j \\
+    & \quad x_{u,v} \geq 0 \quad \forall u,v \in V
+    \end{aligned}
+
+\noindent consider the following example,\\
+
+\begin{tikzpicture}[->, >=stealth', shorten >=1pt, auto, node distance=4cm, semithick]
+
+    % Styles
+    \tikzstyle{node_style} = [circle, draw=black, fill=blue!30, font=\sffamily\Large\bfseries]
+
+    % Nodes
+    \node[node_style] (O1) at (-10,8) {O1};
+    \node[node_style] (O2) at (-10,4) {O2};
+    \node[node_style] (O3) at (-10,0) {O3};
+    
+    \node[node_style] (J1) at (-4,10) {J1};
+    \node[node_style] (J2) at (-4,6) {J2};
+    \node[node_style] (J3) at (-4,2) {J3};
+    \node[node_style] (J4) at (-4,-2) {J4};
+    \node[node_style] (J5) at (-4,-6) {J5};
+    
+    \node[node_style] (D1) at (2,8) {D1};
+    \node[node_style] (D2) at (2,4) {D2};
+    \node[node_style] (D3) at (2,0) {D3};
+    \node[node_style] (D4) at (2,-4) {D4};
+  
+    % Origin to Junction connections
+    \path (O1) edge node {324} (J1);
+    \path (O1) edge node {286} (J2);
+    
+    \path (O2) edge node {373} (J1);
+    \path (O2) edge node [below] {212} (J2);
+    \path (O2) edge node {570} (J3);
+    \path (O2) edge node {609} (J4);
+    
+    \path (O3) edge node {658} (J1);
+    \path (O3) edge node {405} (J3);
+    \path (O3) edge node {419} (J4);
+    \path (O3) edge node {158} (J5);
+  
+    % Junction to Destination connections
+    \path (J1) edge node {503} (D1);
+    \path (J1) edge node {234} (D2);
+    \path (J1) edge node [below] {329} (D3);
+    
+    \path (J2) edge node {505} (D1);
+    \path (J2) edge node {407} (D2);
+    \path (J2) edge node {683} (D3);
+    
+    \path (J3) edge node {398} (D1);
+    \path (J3) edge node {253} (D2);
+    \path (J3) edge node {171} (D3);
+    
+    \path (J4) edge node {329} (D2);
+    \path (J4) edge node [below] {464} (D3);
+    \path (J4) edge node {117} (D4);
+    
+    \path (J5) edge node [below] {647} (D1);
+    \path (J5) edge node {501} (D2);
+    \path (J5) edge node {293} (D3);
+    \path (J5) edge node {482} (D4);
+  
+    % Output values (supply)
+    \node at (-11,8) {75};
+    \node at (-11,4) {125};
+    \node at (-11,0) {100};
+  
+    % Allocation values (demand)
+    \node at (3,8) {80};
+    \node at (3,4) {65};
+    \node at (3,0) {70};
+    \node at (3,-4) {85};
+  
+\end{tikzpicture}
+
+\\
+ 
+\noindent Additional example.\\
+
+\noindent \begin{table}[h!]
+    \centering
+    \begin{tabular}{|c|c|c|c|}
+    \hline
+
+         & WH 1    & WH 2       &  Capacity        \\ \hline
+    Plant 1 & 6    & 5          & 600      \\ \hline
+    Plant 2 & 4    & 7          & 500      \\ \hline
+    Plant 3 & 8    & 5          & 700      \\ \hline
+    \end{tabular}
+    \end{table}\\
+    \begin{table}[h!]
+    \begin{tabular}{|c|c|c|c|}
+    \hline
+    
+           & DC 1    & DC 2       & DC 3    \\ \hline
+    WH 1   & 6       & 7          & 9       \\ \hline
+    WH 2   & 3       & 6          & 12      \\ \hline
+    Demand & 400     & 600        & 800     \\ \hline
+    \end{tabular}
+    \end{table}\\
+
+    \begin{tikzpicture}[->, >=stealth', shorten >=1pt, auto, node distance=4cm, semithick]
+
+        % Styles
+        \tikzstyle{node_style} = [circle, draw=black, fill=blue!30, font=\sffamily\Large\bfseries]
+    
+        % Nodes
+        \node[node_style] (O1) at (-10,4) {O1};
+        \node[node_style] (O2) at (-10,0) {O2};
+        \node[node_style] (O3) at (-10,-4) {O3};
+        
+        \node[node_style] (J1) at (-4,2) {J1};
+        \node[node_style] (J2) at (-4,-2) {J2};
+        
+        \node[node_style] (D1) at (2,4) {D1};
+        \node[node_style] (D2) at (2,0) {D2};
+        \node[node_style] (D3) at (2,-4) {D3};
+        
+        % Labels for supply and demand
+        \node at (-11,4) {600};
+        \node at (-11,0) {500};
+        \node at (-11,-4) {700};
+      
+        \node at (3,4) {400};
+        \node at (3,0) {600};
+        \node at (3,-4) {800};
+        
+        % Origin to Junction connections
+        \path (O1) edge node {6} (J1);
+        \path (O1) edge node {5} (J2);
+        
+        \path (O2) edge node {4} (J1);
+        \path (O2) edge node {7} (J2);
+        
+        \path (O3) edge node {8} (J1);
+        \path (O3) edge node {5} (J2);
+      
+        % Junction to Destination connections
+        \path (J1) edge node {6} (D1);
+        \path (J1) edge node {7} (D2);
+        \path (J1) edge node {9} (D3);
+        
+        \path (J2) edge node {3} (D1);
+        \path (J2) edge node {6} (D2);
+        \path (J2) edge node {12} (D3);
+        
+    \end{tikzpicture}\\
+
+  \begin{align}
+        \text{min} & \quad 6 x_{o_1,j_1}+5 x_{o_1,j_2}+4 x_{o_2, j_1}+7 x_{o_2,j_2}+8 x_{o_3,j_1}+5 x_{o_3,j_2} \nonumber \\ 
+        & \quad +6 x_{j_1,d_1}+7 x_{j_1, d_2}+9 x_{j_1,d_3}+3 x_{j_2,d_1}+6 x_{j_2,d_2}+12 x_{j_2,d_3} \nonumber \\ 
+        
+        \text{s.t.} & \quad x_{o_1,j_1}+x_{o_1,j_2} \leq 600\\
+        & \quad x_{o_2,j_1}+x_{o_2,j_2} \leq 500\\ 
+        & \quad x_{o_3,j_1}+x_{o_3,j_2} \leq 700\\
+        & \quad x_{o_1, j_1}+x_{o_2, j_1}+x_{o_3,j_1}-x_{j_1,d_1}-x_{j_1,d_2}-x_{j_1,d_3}=0\\
+        & \quad x_{o_1, j_2}+x_{o_2, j_2}+x_{o_3,j_2}-x_{j_2,d_1}-x_{j_2,d_2}-x_{j_2,d_3}=0\\
+        & \quad x_{j_1,d_1}+x_{j_2,d_1}=400\\
+        & \quad x_{j_1,d_2}+x_{j_2,d_2}=600\\
+        & \quad x_{j_1,d_3}+x_{j_2,d_3}=800\\
+        & \quad x_{u,v} \geq 0 \quad \forall u,v \in V
+        \end{align}
+    
+
+\noindent \textbf{\large{2. Multiple Vehicle Routing}} \\
+
+\begin{aligned}
+    \min \quad & \sum_{u \in V} \sum_{v \in V} w_{u,v} x_{u,v} \\
+    \text{s.t} \quad & \sum_{v \in V} x_{v, u}=1 \quad \forall u \in V \backslash\{0\} \\
+    & \sum_{u \in V} x_{v, u}=1 \quad \forall v \in V \backslash\{0\} \\
+    & \sum_{v \in V \backslash\{0\}} x_{u, 0}= \sum_{u \in V\{0\}} x_{0, v}=k\\
+    & \sum_{v \notin S} \sum_{u \in S} x_{v, u} \geq r(S), \quad \forall S \subseteq V \backslash\{0\}, S \neq \emptyset \\
+    & x_{v, u} \in\{0,1\} \quad \forall v, u \in V
+    \end{aligned}\\
+
+    \noindent The 4th constraint can be rewritten as follows,
+    $$
+    \sum_{v \in S} \sum_{u \in S} x_{v, u} \leq|S|-r(S)
+    $$
+
+\noindent \textbf{\large{3. Multidivisional problem}} \\
+
+\begin{align}
+    \text{max} & \quad 8 x_1+5 x_2+6 x_3+9 x_4+7 x_5+9 x_6+6 x_7+5 x_8  + 6 x_9 \nonumber \\ 
+    \text{s.t.} & \quad 5 x_1+ 3 x_2+4 x_3+2 x_4+7 x_5+3 x_6+4 x_7+6 x_8 + x_9 \leq 30 \nonumber \\
+    &\quad 2 x_1+4 x_2+3 x_3 \leq 5\nonumber\\ 
+    & \quad  2x_4+8 x_5+6 x_6 \leq 6 \nonumber\\
+    & \quad  3x_7+5 x_8+9 x_9 \leq 32 \nonumber\\
+    & \quad x_i \geq 0 \quad \forall i \in \{1, \cdots,9\} \quad \text{and} \quad x_i \in \mathbb{Z} \quad \forall i \in \{1, \cdots,9\} \nonumber
+    \end{align} \nonumber
+
+    \noindent We then do the benders decomposition, with initial master problem,\\
+
+\begin{align}
+\text{max} & \quad 8 x_1+5 x_2+6 x_3+9 x_4+7 x_5+9 x_6+6 x_7+5 x_8  + 6 x_9 \nonumber \\ 
+\text{s.t.} & \quad 5 x_1+ 3 x_2+4 x_3+2 x_4+7 x_5+3 x_6+4 x_7+6 x_8 + x_9 \leq 30 \nonumber \\
+\end{align} \nonumber
+
+\noindent and the following subproblems,\\
+
+$$
+\begin{aligned}
+    \max \quad & \pi_1\left(5 x_1+3 x_2+4 x_3\right)+\pi_2\left(2 x_1+4 x_2+3 x_3\right) \\
+    \text { s.t. } \quad  & 2 x_1+4 x_2+3 x_3 \leq 5 \\
+    \quad & x_1, x_2, x_3 \geq 0,
+ \quad x_1, x_2, x_3 \in \mathbb{Z}
+    \end{aligned} \nonumber
+$$\\
+
+$$
+\begin{aligned}
+    \max \quad & \pi_3\left(2 x_4+8 x_5+6 x_6\right) + \pi_4 (2x_4 +7x_5 + 3x_6) \\
+    \text { s.t. } \quad  & 2 x_4+8 x_5+6 x_6 \leq 6 \\
+    \quad & x_4, x_5, x_6 \geq 0,
+ \quad x_4, x_5, x_6 \in \mathbb{Z}
+    \end{aligned} \nonumber
+    $$\\
+
+$$
+\begin{aligned}
+    \max \quad & \pi_5\left(3 x_7+5 x_8+9 x_9\right) + \pi_6 (4x_7 +6x_8 + x_9) \\
+    \text { s.t. } \quad  & 3 x_7+5 x_8+9 x_9 \leq 32 \\
+    \quad & x_7, x_8, x_9 \geq 0,
+ \quad x_7, x_8, x_9 \in \mathbb{Z}
+    \end{aligned} \nonumber
+$$\\
+
+
+\noindent After solving the subproblems, we get the following solutions,\\
+
+\begin{align}
+\text{max} & \quad 8 x_1+5 x_2+6 x_3+9 x_4+7 x_5+9 x_6+6 x_7+5 x_8  + 6 x_9 \nonumber \\ 
+\text{s.t.} & \quad 5 x_1+ 3 x_2+4 x_3+2 x_4+7 x_5+3 x_6+4 x_7+6 x_8 + x_9 \leq 30 \nonumber \\
+&\quad 2 x_1 \leq 16\nonumber\\ 
+& \quad  3 x_4 \leq 27 \nonumber\\
+& \quad  10 x_7 \leq 60 \nonumber\\
+& \quad x_i \geq 0 \quad \forall i \in \{1, \cdots,9\} \quad \text{and} \quad x_i \in \mathbb{Z} \quad \forall i \in \{1, \cdots,9\} \nonumber
+\end{align} \nonumber
+
+\newpage 
+
+\noindent \textbf{\large{1. Block-Angular Structure}}
+\\
+
+\noindent A matrix $A$ has a \textbf{block angular structure} if it is of this form:
+\[
+A = \begin{bmatrix}
+A_{1} & A_{2} & \cdots & A_{n-1} & A_{n} \\
+A_{n+1} & 0 & \cdots & 0 & 0 \\
+0 & A_{n+2} & \cdots & 0 & 0 \\
+\vdots & \vdots & \ddots & \vdots & \vdots \\
+0 & 0 & \cdots & 0 & A_{2n}
+\end{bmatrix}
+\]
+
+\noindent where $A_{i}$ are submatrices of size $m_i \times n_i$. We call the first $n$ matrices $A_1, A_2, \cdots, A_{n-1}$ the bounding constraints and the last $n$ matrices the independent constraints. Notice that this easily becomes a linear program that looks like this, 
+
+$$
+\begin{aligned}
+\text{maximize} \quad & \sum_{i=1}^{n} \vec{c}_i \vec{x}_i \\
+\text{subject to} \quad & [A_1, \cdots, A_n, I] \vec{x}^T = \vec{b}_0 \quad \text{  linking constraints}\\
+& A_{n+i} \vec{x}_i = \vec{b}_i, \quad \forall i \in \{1, \cdots, n\} \quad \text{  independent constraints} \\
+& \vec{x}^T \geq 0, \quad \vec{x}_i \geq 0, \quad \forall i \in \{1, \cdots, n\} \quad \text{  non-negativity constraints}
+\end{aligned}
+$$
+
+\noindent In this linear program, the $\vec{c}_i$ are the costs and $\vec{x} = [\vec{x}_1, \cdots, \vec{x}_n]^T$ are the decision variables and $\vec{b}_i$ are the right hand side of the constraints. The aim of the Dantzig-Wolfe decomposition is to be more computationally efficient in solving this problem. We start with a \textbf{restricted master problem} (RMP), which usually encompasses all the linking constraints and then check the independent constraints one by one by solving them as subproblems.
+
+\newpage
+
+
+\noindent \textbf{\large{2. Column Generation}} \\
+\\
+
+\noindent \textbf{2.1 Intro}
+\\
+
+\noindent \textbf{2.2 Formulating the problem}
+
+
+
+\noindent We denote the optimal solutions as $x^*$ and $y^*$ (by duality, $c^T x^* = b^T y^*$, we denote the optimal value as $z^*$). We can consider the optimal value as a function of the parameters $c, b, A$, i.e. $z^* = f(c, b, A)$. We can also consider the optimal dual value of a constraint, $y^*_i$ as a partial derivative of the optimal value with respect to the constraint, i.e. $y^*_i = \frac{\partial z^*}{\partial b_i}$ and further, $y^* = \frac{\partial z^*}{\partial b}$. Notably, $u^*_i$ represents the increase in the optimal value of the objective function if the RHS of the $i$th constraint is increased by 1.
+\\
+\\
+
+\noindent \textbf{2.3 Altered Simplex Method}
+\\
+
+\noindent \textbf{2.4 Computational Analysis}
+\\
+
+\noindent \textbf{2.5 Examples}
+\\
+
+\newpage
+
+\noindent \textbf{\large{3. Dantzig-Wolfe Decomposition}} \\
+\\
+
+\noindent \textbf{3.1 Overview}
+\\
+
+\noindent We'll start by giving a high level view of the algorithm, which is basically doing these steps (Wikipedia):
+\begin{enumerate}
+    \item Start with a \underline{feasible} solution to the RMP, formulate new objective functions for each subproblem such that the subproblems will offer solutions that improve the current objective of the master program.
+    \item Re-solve the subproblems given their new objective functions, the optimal value for each subproblem is offered to the master program.
+    \item Incorporate one or all of the new columns generated by the solutions to the subproblems into the master program based on their respective ability to improve the original problem's objective.
+    \item Perform \(x\) iterations of the simplex algorithm in the master program, where \(x\) is the number of columns incorporated.
+    \item If the objective is improved, go to step 1. Otherwise, we ran out of improvement so we return the solution.
+\end{enumerate}
+
+\noindent Note that Dantzig-Wolfe is most effective when the subproblems are easy to solve. Now, let's break it down into more detail.  The first step consists of solving the RMP and then defining the objective functions. The RMP looks like this,
+
+$$
+\begin{aligned}
+    \text{maximize} \quad & \sum_{i=1}^{n} \vec{c}_i \vec{x}_i \\
+    \text{subject to} \quad & [A_1, \cdots, A_n, I] \vec{x}^T = \vec{b}_0  \\
+    & \vec{x}^T \geq 0\\
+\end{aligned}
+$$
+\\
+\\
+
+\noindent The subproblems look like this, for every $i$th subproblem,
+$$
+\begin{aligned}
+    \text{maximize} \quad & \vec{c}_i \vec{x}_i \\
+    \text{subject to} \quad & A_{n+i} \vec{x}_i = \vec{b}_i \\
+    & \vec{x}_i \geq 0
+\end{aligned}
+$$
+\\
+
+\noindent What interests us is the feasible region of the subproblems, we will denote them as $S_i = \{\vec{x}_i \geq 0 | A_{n+i} \vec{x}_i = \vec{b}_i\}$. Assume that $S_i$ is bounded for simplicity (it can easily be extended to having unbounded regions, we would consider unbounded rays). We have a set of vertices $V_i = \{(v_{i,1}, \cdots, v_{i,n}) | v_{i,j} \in S_i\}$ which completely defines the feasible region of the subproblem. This implies that we can represent every $x_i \in S_i$ as a convex combination of the vertices $v_{i,j}$, i.e. $\exists \{\lambda_{i,j} \geq 0\}_j \text{ s.t. } x_i = \sum_{j=1}^{n} \lambda_{i,j} v_{i,j}$ and with $\sum_{j=1}^{n} \lambda_{i,j} = 1$ (this follows from the representation theorem).
+\\
+
+\noindent Now, we can transform the RMP by using the $\lambda_{i,j}$ as the new decision variables.
+
+$$
+\begin{array}{clll}
+    \min & \sum_{i=1}^m \sum_{j=1}^{N_i} \lambda_{i, j}\left(c_i v_{i, j}\right) & & \\
+    \mathrm{s.t.} & \sum_{i=1}^m \sum_{j=1}^{N_i} \lambda_{i, j}\left(A_{0, i} v_{i, j}\right) & =b_0 & \\
+    & \sum_{j=1}^{N_i} \lambda_{i, j} & =1 & \forall i=1,2, \ldots, m \\
+    & \lambda_{i, j} & \geq 0 & \forall i, j
+\end{array}\\
+$$
+
+\noindent Notably, we reduced the number of constraints to $m + m_0$, since there aren now $m$ independent constraints and $m_0$ linking constraints. Basically, we squashed all the independent constraint blocks into single constraints. However, there are now substantially more variables, which is why we will use an altered simplex method.
+\\
+
+\noindent \textbf{3.2 Altered Simplex}
+\\
+
+\noindent We start by creating the dual variables, $y_0 \in \mathbb{R}^{m_0}$ and $z \in \mathbb{R}^{m}$ which set the sum $\sum_{i=1}^{m} \lambda_{i, j} =1$. Note that each column represents one vertex. And so, we want to find out which columns have negative reduced cost (because this is a minimization problem). If we consider the column for $\lambda_{i, j}$, then the reduced cost is 
+$$ \bar{c}_i = c_i v_{i, j} - y_0 A_{0, i} v_{i, j} - z_i $$
+
+\noindent which we can obtain by taking the inner product of the dual variables with the column for $\lambda_{i, j}$.
+
+$$\left[\begin{array}{ll}
+    y_0 & z 
+    \end{array} \right]\left[\frac{A_{0 i} v_{i j}}{c_i}\right] \quad \text{(unsure about this)}
+    $$
+
+\noindent So now we want to know if there exists $v_{i, j}$ such that $\bar{c}_i < 0$ or equivalently, $c_i v_{i, j} - y_0 A_{0, i} v_{i, j} - z_i < 0$. If so, we can then find the column for $\lambda_{i, j}$ that has the smallest reduced cost? This means we want to find a vertex of $S_i$ such that $(c_i - y_0 A_{0, i}) v_{i, j} - z_i < 0$.
+\\
+
+\noindent We now consider the resulting subproblem,
+\\
+$$
+\begin{array}{rcl}
+    \min & \bar{c}_i x_i & \\
+    \text { s.t. } & A_{n+i} x_i & =b_i, \\
+    & x_i & \geq 0
+\end{array}
+$$
+\\
+
+\noindent Since $S_i$ is nonempty (otherwise the master problem is infeasible), this problem must contain a vertex $\textbf{v}$ which is the optimal solution. If $\bar{c}_i\textbf{v}<z_i$ then we know that $\textbf{v}$ is a negative cost vertex and we should add it to the basis. If this is false $\forall i$, then no column of $S_i$ has negative reduced cost. Hence, after solving the subproblems for all $S_i$, we either find a negative reduced cost column or otherwise we show that the current solution to the master problem is optimal.
+\\
+
+\noindent Notice that this in itself is fundamentally a revised version of the simplex algorithm, however with significantly reduced usage of space. Additionally, it is more efficient computationally since the slave problems can be solved in parallel (that is the big advantage), we simply choose the first negative reduced cost column subproblem to be computed.
+\\
+
+
+\noindent \textbf{3.5 Examples}
+\\
+
+\newpage
+
+\noindent \textbf{\large{4. Block Selection Linear Program}} \\
+
+\noindent \textbf{4.1 Defining the problem}
+\\
+
+\noindent This is a subproblem of larger mine planning optimization problems. The objective is to maximize the total value of the blocks selected, subject to the constraints that the total volume of the selected blocks does not exceed the available volume, and that the total value of the selected blocks does not exceed the available value. Here is a formal version of the problem for two modes, $\{A, B\}$ and two ore types $\{I, II\}$.
+\\
+
+$
+\begin{aligned} 
+    \max & \sum_{b \in B}\left(V_{b, A, I} m_{b, A, I}+V_{b, A, II} m_{b, A, II}+V_{b, B, I} m_{b, B, I}+V_{b, B, II} m_{b, B, II}\right) \\ 
+    \text { st. } & \sum_{b \in B B}\left(\frac{m_{b, A, I}}{r_{A, I}}+\frac{m_{b, A, II}}{r_{A, II}}+\frac{m_{b, B, I}}{r_{B, I}}+\frac{m_{b, B, II}}{r_{B, II}}\right) \leqslant t_{\text {period }} \text { (1) } \\
+    & r_{A,I} m_{b, A, I} + r_{A,II} m_{b, A, II} =0 \quad \forall b \in \mathcal{B} \quad(2) \\
+    & r_{B,I} m_{b, B, I} + r_{B,II} m_{b, B, II} =0 \quad \forall b \in \mathcal{B} \quad(3) \\
+    & m_{b, A, I}+m_{b, B, I} \leqslant m_{b, I}  \\ 
+    & m_{b, A, I}+m_{b, B, I} \leqslant m_{b, I}  \quad \forall b \in \mathcal{B} \quad(4) \\ 
+    & m_{i j k}, r_{j k} \geqslant 0 \quad \forall i \in \mathcal{B}, j \in \text { modes, } k \in \text { ores }
+\end{aligned}
+$
+\\
+
+\noindent where $\mathfrak{B}$ is the set of blocks, $V_{b j k}$ is the value of block $b$ in mode $j$ and ore $k$, $m_{b j k}$ is the volume of block $b$ in mode $j$ and ore $k$, $r_{j k}$ is the recovery rate of ore $k$ in mode $j$, and $t_{\text {period }}$ is the total time available for block selection.\\
+
+\noindent The first constraint represents the time constraint, that is to say that the total volume of blocks divided by the rate of recovery of the ore must be less than or equal to the total time available. The second and third constraints represent the volume constraints, that is to say that the volume of blocks selected in mode $j$ and ore $k$ must be less than or equal to the total volume of blocks in mode $j$ and ore $k$.\\
+
+\noindent \textbf{4.2 Improvements based on column generation and Dantzig-Wolfe}
+\\
+
+\noindent \textbf{4.2.1 Column Generation}
+\\
+
+\noindent \textbf{4.2.2 Dantzig-Wolfe}
+\\
+
+\noindent \textbf{4.3 Implementation details}
+\\
+
+\noindent \textbf{4.4 Computational Analysis}
+\\
+
+\noindent \textbf{4.5 Example with 2 modes and 2 ores}
+\\
+
+\newpage
+
+\noindent \textbf{\large{5. Potential Future Work}}
+\\
+
+\newpage
+
+\noindent \textbf{\large{5. Conclusion}}
+\\
 
 
 
